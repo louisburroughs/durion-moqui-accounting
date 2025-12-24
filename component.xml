@@ -2,8 +2,12 @@
 <component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd"
            name="durion-accounting" version="1.0.0">
-    <description>Durion Accounting - Financial Management</description>
+    <description>Durion Accounting - Accounts Receivable and Payment Management</description>
+    <depends-on name="durion-crm"/>
     <depends-on name="durion-common"/>
-    <depends-on name="mantle-udm"/>
-    <depends-on name="SimpleScreens"/>
+
+    <entity-facade>
+        <load-entity value="demo" location="data/DurAccountingDemoData.xml"/>
+    </entity-facade>
+
 </component>

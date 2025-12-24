@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml type="demo">
+    <!-- Sample AR Transactions (Invoices) -->
+    <durion.accounting.DurArTransaction arTransactionId="ARTRANS-001" invoiceId="INV-001" 
+                                        customerId="CUST-001" transactionType="INVOICE"
+                                        transactionDate="2024-12-01T10:00:00" 
+                                        description="Service Invoice - December"
+                                        amount="1500.00" balanceAmount="1500.00"
+                                        glAccountId="AR-001" departmentId="SALES"
+                                        statusId="AR_TRANS_POSTED" 
+                                        postedDate="2024-12-01T10:00:00"
+                                        createdBy="admin"/>
+    <durion.accounting.DurArTransaction arTransactionId="ARTRANS-002" invoiceId="INV-002"
+                                        customerId="CUST-002" transactionType="INVOICE"
+                                        transactionDate="2024-12-05T14:30:00"
+                                        description="Parts and Labor"
+                                        amount="2500.00" balanceAmount="1250.00"
+                                        glAccountId="AR-001" departmentId="SERVICE"
+                                        statusId="AR_TRANS_POSTED"
+                                        postedDate="2024-12-05T14:30:00"
+                                        createdBy="admin"/>
+    <durion.accounting.DurArTransaction arTransactionId="ARTRANS-003" invoiceId="INV-003"
+                                        customerId="CUST-003" transactionType="INVOICE"
+                                        transactionDate="2024-11-15T09:00:00"
+                                        description="Fleet Maintenance"
+                                        amount="5000.00" balanceAmount="5000.00"
+                                        glAccountId="AR-001" departmentId="SERVICE"
+                                        statusId="AR_TRANS_POSTED"
+                                        postedDate="2024-11-15T09:00:00"
+                                        createdBy="admin"/>
+    
+    <!-- Payments -->
+    <durion.accounting.DurArTransaction arTransactionId="ARTRANS-004" invoiceId="INV-002"
+                                        customerId="CUST-002" transactionType="PAYMENT"
+                                        transactionDate="2024-12-10T15:00:00"
+                                        description="Payment received"
+                                        amount="1250.00" balanceAmount="0"
+                                        statusId="AR_TRANS_POSTED"
+                                        postedDate="2024-12-10T15:00:00"
+                                        createdBy="admin"/>
+    
+    <!-- Credit Memo -->
+    <durion.accounting.DurArTransaction arTransactionId="ARTRANS-005" invoiceId="INV-001"
+                                        customerId="CUST-001" transactionType="CREDIT_MEMO"
+                                        transactionDate="2024-12-08T11:00:00"
+                                        description="Discount applied"
+                                        amount="-100.00" balanceAmount="0"
+                                        glAccountId="AR-002" departmentId="SALES"
+                                        statusId="AR_TRANS_POSTED"
+                                        postedDate="2024-12-08T11:00:00"
+                                        createdBy="admin"/>
+    
+    <!-- Payment Records -->
+    <durion.accounting.DurPayment paymentId="PAY-001" customerId="CUST-001" invoiceId="INV-001"
+                                  paymentMethod="CHECK" paymentAmount="1400.00"
+                                  paymentDate="2024-12-08T14:00:00" referenceNumber="CHK-5678"
+                                  bankAccount="BA-001" glAccountId="GL-1010"
+                                  statusId="PAYMENT_CLEARED" depositDate="2024-12-09"
+                                  clearedDate="2024-12-12" createdBy="admin"/>
+    <durion.accounting.DurPayment paymentId="PAY-002" customerId="CUST-002" invoiceId="INV-002"
+                                  paymentMethod="ACH" paymentAmount="1250.00"
+                                  paymentDate="2024-12-10T09:00:00" referenceNumber="ACH-123456"
+                                  bankAccount="BA-001" glAccountId="GL-1010"
+                                  statusId="PAYMENT_CLEARED" depositDate="2024-12-10"
+                                  clearedDate="2024-12-12" createdBy="admin"/>
+    <durion.accounting.DurPayment paymentId="PAY-003" customerId="CUST-003" invoiceId="INV-003"
+                                  paymentMethod="CHECK" paymentAmount="5000.00"
+                                  paymentDate="2024-12-15T10:00:00" referenceNumber="CHK-9012"
+                                  bankAccount="BA-001" glAccountId="GL-1010"
+                                  statusId="PAYMENT_RECEIVED" depositDate="2024-12-16"
+                                  createdBy="admin"/>
+    <durion.accounting.DurPayment paymentId="PAY-004" customerId="CUST-001" 
+                                  paymentMethod="WIRE_TRANSFER" paymentAmount="500.00"
+                                  paymentDate="2024-12-18T16:00:00" referenceNumber="WIRE-456789"
+                                  bankAccount="BA-001" glAccountId="GL-1010"
+                                  statusId="PAYMENT_RECEIVED" depositDate="2024-12-18"
+                                  createdBy="admin"/>
+</entity-facade-xml>

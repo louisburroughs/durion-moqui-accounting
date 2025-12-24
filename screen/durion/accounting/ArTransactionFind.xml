@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        default-menu-title="AR Transactions" default-menu-index="1">
+
+    <transition name="createInvoice">
+        <service-call name="durion.accounting.DurAccountingServices.create#ArInvoice"/>
+        <default-response url="."/>
+    </transition>
+
+    <transition name="createCredit">
+        <service-call name="durion.accounting.DurAccountingServices.create#CreditMemo"/>
+        <default-response url="."/>
+    </transition>
+
+    <transition name="transactionDetail">
+        <default-response url="."/>
+    </transition>
+
+    <actions>
+        <entity-find entity-name="durion.accounting.DurArTransaction" list="arTransactionList">
+            <search-form-inputs default-order-by="-transactionDate"/>
+        </entity-find>
+    </actions>
+
+    <widgets>
+        <container-row>
+            <row-col lg="6">
+                <container-dialog id="CreateInvoiceDialog" button-text="Create Invoice">
+                    <form-single name="CreateInvoice" transition="createInvoice">
+                        <field name="invoiceId"><default-field title="Invoice ID" required="true"><text-line size="20"/></default-field></field>
+                        <field name="customerId"><default-field title="Customer" required="true"><text-line size="20"/></default-field></field>
+                        <field name="amount"><default-field title="Amount" required="true"><text-line size="15" format="$#,##0.00"/></default-field></field>
+                        <field name="description"><default-field><text-line size="50"/></default-field></field>
+                        <field name="glAccountId"><default-field title="GL Account"><text-line size="20"/></default-field></field>
+                        <field name="departmentId"><default-field title="Department"><text-line size="20"/></default-field></field>
+                        <field name="submitButton"><default-field title="Create"><submit/></default-field></field>
+                    </form-single>
+                </container-dialog>
+            </row-col>
+            <row-col lg="6">
+                <container-dialog id="CreateCreditDialog" button-text="Create Credit Memo">
+                    <form-single name="CreateCredit" transition="createCredit">
+                        <field name="invoiceId"><default-field title="Invoice ID"><text-line size="20"/></default-field></field>
+                        <field name="customerId"><default-field title="Customer" required="true"><text-line size="20"/></default-field></field>
+                        <field name="amount"><default-field title="Credit Amount" required="true"><text-line size="15" format="$#,##0.00"/></default-field></field>
+                        <field name="reason"><default-field title="Reason" required="true"><text-line size="50"/></default-field></field>
+                        <field name="glAccountId"><default-field title="GL Account"><text-line size="20"/></default-field></field>
+                        <field name="departmentId"><default-field title="Department"><text-line size="20"/></default-field></field>
+                        <field name="submitButton"><default-field title="Create"><submit/></default-field></field>
+                    </form-single>
+                </container-dialog>
+            </row-col>
+        </container-row>
+
+        <form-list name="ArTransactionList" list="arTransactionList" skip-form="true">
+            <field name="arTransactionId">
+                <default-field title="Transaction ID">
+                    <link url="transactionDetail" text="${arTransactionId}" 
+                          parameter-map="[arTransactionId: arTransactionId]"/>
+                </default-field>
+            </field>
+            <field name="invoiceId"><default-field title="Invoice"><display/></default-field></field>
+            <field name="customerId"><default-field title="Customer"><display/></default-field></field>
+            <field name="transactionType"><default-field title="Type"><display/></default-field></field>
+            <field name="transactionDate">
+                <default-field title="Date">
+                    <display format="yyyy-MM-dd HH:mm"/>
+                </default-field>
+            </field>
+            <field name="amount">
+                <default-field title="Amount">
+                    <display format="$#,##0.00"/>
+                </default-field>
+            </field>
+            <field name="balanceAmount">
+                <default-field title="Balance">
+                    <display format="$#,##0.00"/>
+                </default-field>
+            </field>
+            <field name="statusId"><default-field title="Status"><display/></default-field></field>
+        </form-list>
+    </widgets>
+</screen>

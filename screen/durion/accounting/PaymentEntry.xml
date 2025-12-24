@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        default-menu-title="Payment Entry" default-menu-index="2">
+
+    <parameter name="customerId"/>
+    <parameter name="invoiceId"/>
+
+    <transition name="recordPayment">
+        <service-call name="durion.accounting.DurAccountingServices.record#Payment"/>
+        <default-response url="."/>
+    </transition>
+
+    <transition name="applyPayment">
+        <service-call name="durion.accounting.DurAccountingServices.apply#Payment"/>
+        <default-response url="."/>
+    </transition>
+
+    <transition name="depositPayment">
+        <service-call name="durion.accounting.DurAccountingServices.deposit#Payment"/>
+        <default-response url="."/>
+    </transition>
+
+    <transition name="clearPayment">
+        <service-call name="durion.accounting.DurAccountingServices.clear#Payment"/>
+        <default-response url="."/>
+    </transition>
+
+    <actions>
+        <service-call name="durion.accounting.DurAccountingServices.find#Payments" 
+                      in-map="[customerId: customerId, invoiceId: invoiceId]" 
+                      out-map="paymentData"/>
+        <service-call name="durion.accounting.DurAccountingServices.get#ArAging" 
+                      in-map="[customerId: customerId]" out-map="agingData"/>
+    </actions>
+
+    <widgets>
+        <container-box>
+            <box-header title="Record Payment"/>
+            <box-body>
+                <form-single name="RecordPayment" transition="recordPayment">
+                    <field name="customerId">
+                        <default-field title="Customer" required="true">
+                            <text-line size="20" default-value="${customerId}"/>
+                        </default-field>
+                    </field>
+                    <field name="invoiceId"><default-field title="Invoice"><text-line size="20" default-value="${invoiceId}"/></default-field></field>
+                    <field name="paymentMethod">
+                        <default-field title="Payment Method" required="true">
+                            <drop-down>
+                                <option key="CASH" text="Cash"/>
+                                <option key="CHECK" text="Check"/>
+                                <option key="CREDIT_CARD" text="Credit Card"/>
+                                <option key="ACH" text="ACH"/>
+                                <option key="WIRE_TRANSFER" text="Wire Transfer"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+                    <field name="paymentAmount">
+                        <default-field title="Amount" required="true">
+                            <text-line size="15" format="$#,##0.00"/>
+                        </default-field>
+                    </field>
+                    <field name="paymentDate">
+                        <default-field title="Payment Date" required="true">
+                            <date-time format="yyyy-MM-dd"/>
+                        </default-field>
+                    </field>
+                    <field name="referenceNumber">
+                        <default-field title="Reference (Check/TX #)">
+                            <text-line size="20"/>
+                        </default-field>
+                    </field>
+                    <field name="bankAccount"><default-field title="Bank Account"><text-line size="20"/></default-field></field>
+                    <field name="glAccountId"><default-field title="GL Account"><text-line size="20"/></default-field></field>
+                    <field name="notes"><default-field><textarea cols="40" rows="3"/></default-field></field>
+                    <field name="submitButton"><default-field title="Record Payment"><submit/></default-field></field>
+                </form-single>
+            </box-body>
+        </container-box>
+
+        <section name="AgingSection" condition="agingData?.totalOutstanding &amp;&amp; agingData.totalOutstanding > 0">
+            <widgets>
+                <container-box>
+                    <box-header title="AR Aging Summary"/>
+                    <box-body>
+                        <container-row>
+                            <row-col lg="3">
+                                <label text="Current: ${agingData?.current ? ec.l10n.format(agingData.current, '$#,##0.00') : '$0.00'}" type="strong"/>
+                            </row-col>
+                            <row-col lg="3">
+                                <label text="30+ Days: ${agingData?.days30 ? ec.l10n.format(agingData.days30, '$#,##0.00') : '$0.00'}" type="strong"/>
+                            </row-col>
+                            <row-col lg="3">
+                                <label text="60+ Days: ${agingData?.days60 ? ec.l10n.format(agingData.days60, '$#,##0.00') : '$0.00'}" type="strong"/>
+                            </row-col>
+                            <row-col lg="3">
+                                <label text="90+ Days: ${agingData?.days90Plus ? ec.l10n.format(agingData.days90Plus, '$#,##0.00') : '$0.00'}" type="danger" font-weight="bold"/>
+                            </row-col>
+                        </container-row>
+                        <label text="Total Outstanding: ${agingData?.totalOutstanding ? ec.l10n.format(agingData.totalOutstanding, '$#,##0.00') : '$0.00'}" 
+                               type="h4" font-weight="bold"/>
+                    </box-body>
+                </container-box>
+            </widgets>
+        </section>
+
+        <container-box>
+            <box-header title="Payment History"/>
+            <box-body>
+                <form-list name="PaymentList" list="paymentData?.paymentList ?: []" skip-form="true">
+                    <field name="paymentId"><default-field><display/></default-field></field>
+                    <field name="invoiceId"><default-field title="Invoice"><display/></default-field></field>
+                    <field name="paymentMethod"><default-field title="Method"><display/></default-field></field>
+                    <field name="paymentAmount">
+                        <default-field title="Amount">
+                            <display format="$#,##0.00"/>
+                        </default-field>
+                    </field>
+                    <field name="paymentDate">
+                        <default-field title="Payment Date">
+                            <display format="yyyy-MM-dd"/>
+                        </default-field>
+                    </field>
+                    <field name="referenceNumber"><default-field title="Reference"><display/></default-field></field>
+                    <field name="statusId"><default-field title="Status"><display/></default-field></field>
+                    <field name="depositDate"><default-field title="Deposited"><display format="yyyy-MM-dd"/></default-field></field>
+                    <field name="clearedDate"><default-field title="Cleared"><display format="yyyy-MM-dd"/></default-field></field>
+                </form-list>
+            </box-body>
+        </container-box>
+    </widgets>
+</screen>

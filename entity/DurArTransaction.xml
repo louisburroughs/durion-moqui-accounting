@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+
+    <entity entity-name="DurArTransaction" package-name="durion.accounting" table-name="DUR_AR_TRANSACTION">
+        <description>Accounts Receivable Transactions - invoices, credits, adjustments</description>
+        <field name="arTransactionId" type="id" is-pk="true"/>
+        <field name="invoiceId" type="id" is-pk="false">
+            <description>Invoice this transaction is related to</description>
+        </field>
+        <field name="customerId" type="id" is-pk="false">
+            <description>Customer associated with transaction</description>
+        </field>
+        <field name="transactionType" type="text-short">
+            <description>INVOICE, CREDIT_MEMO, PAYMENT, ADJUSTMENT, WRITE_OFF</description>
+        </field>
+        <field name="transactionDate" type="date-time" required="true"/>
+        <field name="description" type="text-medium"/>
+        <field name="amount" type="currency-amount" required="true">
+            <description>Transaction amount - can be positive or negative</description>
+        </field>
+        <field name="balanceAmount" type="currency-amount">
+            <description>Remaining balance on invoice</description>
+        </field>
+        <field name="glAccountId" type="text-short">
+            <description>General ledger account code</description>
+        </field>
+        <field name="departmentId" type="text-short">
+            <description>Department code for accounting</description>
+        </field>
+        <field name="statusId" type="text-short" default="AR_TRANS_POSTED">
+            <description>Status of transaction</description>
+        </field>
+        <field name="postedDate" type="date-time">
+            <description>Date transaction was posted to GL</description>
+        </field>
+        <field name="createdBy" type="text-short"/>
+        <field name="createdDate" type="date-time" default="ec.user.nowTimestamp"/>
+        <field name="updatedDate" type="date-time" update="ec.user.nowTimestamp"/>
+        <relationship type="one" related-entity-name="durion.crm.DurCustomer" short-alias="customer">
+            <key-map field-name="customerId" related-field-name="customerId"/>
+        </relationship>
+    </entity>
+
+    <entity entity-name="DurPayment" package-name="durion.accounting" table-name="DUR_PAYMENT">
+        <description>Payment records - cash, check, card, ACH payments from customers</description>
+        <field name="paymentId" type="id" is-pk="true"/>
+        <field name="customerId" type="id" is-pk="false" required="true">
+            <description>Customer making payment</description>
+        </field>
+        <field name="invoiceId" type="id" is-pk="false">
+            <description>Invoice being paid</description>
+        </field>
+        <field name="paymentMethod" type="text-short" required="true">
+            <description>CASH, CHECK, CREDIT_CARD, ACH, WIRE_TRANSFER</description>
+        </field>
+        <field name="paymentAmount" type="currency-amount" required="true"/>
+        <field name="paymentDate" type="date-time" required="true"/>
+        <field name="referenceNumber" type="text-short">
+            <description>Check number, transaction ID, etc.</description>
+        </field>
+        <field name="bankAccount" type="text-short">
+            <description>Bank account receiving payment</description>
+        </field>
+        <field name="glAccountId" type="text-short">
+            <description>GL account for deposit</description>
+        </field>
+        <field name="statusId" type="text-short" default="PAYMENT_RECEIVED">
+            <description>PAYMENT_RECEIVED, PAYMENT_APPLIED, PAYMENT_CLEARED</description>
+        </field>
+        <field name="depositDate" type="date">
+            <description>Date payment was deposited</description>
+        </field>
+        <field name="clearedDate" type="date">
+            <description>Date check/ACH cleared</description>
+        </field>
+        <field name="notes" type="text-long"/>
+        <field name="createdBy" type="text-short"/>
+        <field name="createdDate" type="date-time" default="ec.user.nowTimestamp"/>
+        <field name="updatedDate" type="date-time" update="ec.user.nowTimestamp"/>
+        <relationship type="one" related-entity-name="durion.crm.DurCustomer" short-alias="customer">
+            <key-map field-name="customerId" related-field-name="customerId"/>
+        </relationship>
+    </entity>
+
+</entities>

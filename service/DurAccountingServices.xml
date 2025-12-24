@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+
+    <!-- AR Transaction Services -->
+    <service verb="create" noun="ArInvoice" type="inline">
+        <in-parameters>
+            <parameter name="invoiceId" required="true"/>
+            <parameter name="customerId" required="true"/>
+            <parameter name="amount" type="BigDecimal" required="true"/>
+            <parameter name="description"/>
+            <parameter name="glAccountId"/>
+            <parameter name="departmentId"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="arTransactionId"/>
+        </out-parameters>
+        <actions>
+            <set field="transactionType" value="INVOICE"/>
+            <set field="transactionDate" from="ec.user.nowTimestamp"/>
+            <set field="balanceAmount" from="amount"/>
+            <set field="statusId" value="AR_TRANS_POSTED"/>
+            <set field="postedDate" from="ec.user.nowTimestamp"/>
+            <set field="createdBy" from="ec.user.userAccount.userId"/>
+            <service-call name="create#durion.accounting.DurArTransaction" in-map="context" out-map="context"/>
+        </actions>
+    </service>
+
+    <service verb="create" noun="CreditMemo" type="inline">
+        <in-parameters>
+            <parameter name="invoiceId"/>
+            <parameter name="customerId" required="true"/>
+            <parameter name="amount" type="BigDecimal" required="true"/>
+            <parameter name="reason" required="true"/>
+            <parameter name="glAccountId"/>
+            <parameter name="departmentId"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="arTransactionId"/>
+        </out-parameters>
+        <actions>
+            <set field="transactionType" value="CREDIT_MEMO"/>
+            <set field="transactionDate" from="ec.user.nowTimestamp"/>
+            <set field="description" from="reason"/>
+            <set field="amount" from="amount * -1"/>
+            <set field="balanceAmount" from="amount"/>
+            <set field="statusId" value="AR_TRANS_POSTED"/>
+            <set field="postedDate" from="ec.user.nowTimestamp"/>
+            <set field="createdBy" from="ec.user.userAccount.userId"/>
+            <service-call name="create#durion.accounting.DurArTransaction" in-map="context" out-map="context"/>
+        </actions>
+    </service>
+
+    <service verb="apply" noun="Payment" type="script"
+             location="component://durion-accounting/script/groovy/DurAccountingServices.groovy#applyPayment">
+        <in-parameters>
+            <parameter name="paymentId" required="true"/>
+            <parameter name="invoiceId"/>
+            <parameter name="amount" type="BigDecimal"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+            <parameter name="amountApplied" type="BigDecimal"/>
+            <parameter name="remainingBalance" type="BigDecimal"/>
+        </out-parameters>
+    </service>
+
+    <service verb="find" noun="ArTransactions" type="inline">
+        <in-parameters>
+            <parameter name="customerId"/>
+            <parameter name="invoiceId"/>
+            <parameter name="transactionType"/>
+            <parameter name="statusId"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="arTransactionList" type="List"/>
+        </out-parameters>
+        <actions>
+            <entity-find entity-name="durion.accounting.DurArTransaction" list="arTransactionList">
+                <econdition field-name="customerId" from="customerId" ignore-if-empty="true"/>
+                <econdition field-name="invoiceId" from="invoiceId" ignore-if-empty="true"/>
+                <econdition field-name="transactionType" from="transactionType" ignore-if-empty="true"/>
+                <econdition field-name="statusId" from="statusId" ignore-if-empty="true"/>
+                <order-by field-name="-transactionDate"/>
+            </entity-find>
+        </actions>
+    </service>
+
+    <service verb="get" noun="ArAging" type="script"
+             location="component://durion-accounting/script/groovy/DurAccountingServices.groovy#getArAging">
+        <in-parameters>
+            <parameter name="customerId"/>
+            <parameter name="asOfDate" type="Date"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="agingData"/>
+            <parameter name="current" type="BigDecimal"/>
+            <parameter name="days30" type="BigDecimal"/>
+            <parameter name="days60" type="BigDecimal"/>
+            <parameter name="days90Plus" type="BigDecimal"/>
+            <parameter name="totalOutstanding" type="BigDecimal"/>
+        </out-parameters>
+    </service>
+
+    <!-- Payment Services -->
+    <service verb="record" noun="Payment" type="inline">
+        <in-parameters>
+            <parameter name="customerId" required="true"/>
+            <parameter name="invoiceId"/>
+            <parameter name="paymentMethod" required="true"/>
+            <parameter name="paymentAmount" type="BigDecimal" required="true"/>
+            <parameter name="paymentDate" type="Date" required="true"/>
+            <parameter name="referenceNumber"/>
+            <parameter name="bankAccount"/>
+            <parameter name="glAccountId"/>
+            <parameter name="notes"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="paymentId"/>
+        </out-parameters>
+        <actions>
+            <set field="statusId" value="PAYMENT_RECEIVED"/>
+            <set field="createdBy" from="ec.user.userAccount.userId"/>
+            <service-call name="create#durion.accounting.DurPayment" in-map="context" out-map="context"/>
+        </actions>
+    </service>
+
+    <service verb="deposit" noun="Payment" type="script"
+             location="component://durion-accounting/script/groovy/DurAccountingServices.groovy#depositPayment">
+        <in-parameters>
+            <parameter name="paymentId" required="true"/>
+            <parameter name="depositDate" type="Date"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+        </out-parameters>
+    </service>
+
+    <service verb="clear" noun="Payment" type="script"
+             location="component://durion-accounting/script/groovy/DurAccountingServices.groovy#clearPayment">
+        <in-parameters>
+            <parameter name="paymentId" required="true"/>
+            <parameter name="clearedDate" type="Date"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+        </out-parameters>
+    </service>
+
+    <service verb="find" noun="Payments" type="inline">
+        <in-parameters>
+            <parameter name="customerId"/>
+            <parameter name="invoiceId"/>
+            <parameter name="paymentMethod"/>
+            <parameter name="statusId"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="paymentList" type="List"/>
+        </out-parameters>
+        <actions>
+            <entity-find entity-name="durion.accounting.DurPayment" list="paymentList">
+                <econdition field-name="customerId" from="customerId" ignore-if-empty="true"/>
+                <econdition field-name="invoiceId" from="invoiceId" ignore-if-empty="true"/>
+                <econdition field-name="paymentMethod" from="paymentMethod" ignore-if-empty="true"/>
+                <econdition field-name="statusId" from="statusId" ignore-if-empty="true"/>
+                <order-by field-name="-paymentDate"/>
+            </entity-find>
+        </actions>
+    </service>
+
+    <service verb="get" noun="PaymentSummary" type="script"
+             location="component://durion-accounting/script/groovy/DurAccountingServices.groovy#getPaymentSummary">
+        <in-parameters>
+            <parameter name="customerId"/>
+            <parameter name="startDate" type="Date"/>
+            <parameter name="endDate" type="Date"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="paymentCount" type="Integer"/>
+            <parameter name="totalReceived" type="BigDecimal"/>
+            <parameter name="averagePayment" type="BigDecimal"/>
+            <parameter name="methodSummary"/>
+        </out-parameters>
+    </service>
+
+</services>
