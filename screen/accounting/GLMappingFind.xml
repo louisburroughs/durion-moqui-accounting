@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Find and List GL Mappings with effective-date filtering and overlap detection</description>
+
+    <transition name="getMappings" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listGLMappings" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createMapping" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <pre-actions>
+        <set field="pageTitle" value="GL Mappings"/>
+        <set field="pageDescription" value="External code to GL account mappings with temporal and dimensional matching"/>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="GL Mappings"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text>Map external system codes to GL accounts. Mappings support effective-date ranges and dimension matching (business unit, location, cost center). Multiple mappings can overlap; priority determines match order.</text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <container-panel id="FilterPanel" type="panel" title-icon="glyphicon-filter">
+            <panel-heading>
+                <label text="Filter Mappings" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <form name="FilterForm" transition="getMappings" method="get" skip-form="true">
+                    <field name="sourceSystem" title="Source System">
+                        <default-field>
+                            <text-line placeholder="e.g., ERP_LEGACY, WMS, BILLING"/>
+                        </default-field>
+                    </field>
+
+                    <field name="effectiveDate" title="Effective as of Date">
+                        <default-field>
+                            <date-time type="date" format="yyyy-MM-dd" help-text="Filter mappings active on this date"/>
+                        </default-field>
+                    </field>
+
+                    <field name="page" title="Page">
+                        <default-field>
+                            <text-line size="4" default-value="0"/>
+                        </default-field>
+                    </field>
+
+                    <field name="submit">
+                        <default-field>
+                            <submit button-type="info" text="Filter" icon="glyphicon-search"/>
+                        </default-field>
+                    </field>
+                </form>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="GLMappingsPanel" type="panel" title-icon="glyphicon-list">
+            <panel-heading>
+                <container-row>
+                    <row-col lg="6">
+                        <label text="GL Mappings" type="h4"/>
+                    </row-col>
+                    <row-col lg="6" style="text-align: right;">
+                        <link url="." text="Create Mapping" icon="glyphicon-plus" btn="primary" target="_blank"/>
+                    </row-col>
+                </container-row>
+            </panel-heading>
+
+            <panel-body>
+                <form-list name="GLMappingList" list="mappings" skip-form="true" paginate="true" 
+                           page-size="20" header-dialog="false" select-columns="true">
+                    <entity-find entity-name="durion.accounting.DurGLMapping" list="mappings" limit="20">
+                        <econdition field-name="organizationId" from="ec.user.organizationId"/>
+                        <order-by field-name="-createdAt"/>
+                    </entity-find>
+
+                    <field name="sourceSystem" title="Source System">
+                        <default-field><text-line size="15" readonly="true"/></default-field>
+                    </field>
+
+                    <field name="externalCode" title="External Code">
+                        <default-field><text-line size="20" readonly="true"/></default-field>
+                    </field>
+
+                    <field name="glAccountId" title="GL Account">
+                        <default-field><text-line size="20" readonly="true"/></default-field>
+                    </field>
+
+                    <field name="effectiveStartDate" title="Start Date">
+                        <default-field><display type="date"/></default-field>
+                    </field>
+
+                    <field name="effectiveEndDate" title="End Date">
+                        <default-field><display type="date" condition="mapping.effectiveEndDate"/></default-field>
+                    </field>
+
+                    <field name="priority" title="Priority">
+                        <default-field><display/></default-field>
+                    </field>
+
+                    <field name="dimensionMatch" title="Dimensions">
+                        <default-field>
+                            <display text="${mapping.dimensionMatchJson ?: 'None'}"/>
+                        </default-field>
+                    </field>
+
+                    <field name="createdAt" title="Created">
+                        <default-field><display type="date-time"/></default-field>
+                    </field>
+
+                    <field name="action" title="Actions">
+                        <default-field>
+                            <link url="." text="View" icon="glyphicon-eye-open"/>
+                            <link url="." text="Edit" icon="glyphicon-pencil"/>
+                            <link url="." text="Duplicate" icon="glyphicon-copy"/>
+                        </default-field>
+                    </field>
+                </form-list>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="OverlapDetectionPanel" type="panel" title-icon="glyphicon-warning-sign">
+            <panel-heading>
+                <label text="Overlapping Mappings" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <label text="Mappings that overlap in effective-date ranges are allowed. The highest-priority mapping is used for matching." type="small"/>
+                    </text>
+                </render-mode>
+                <form-list name="OverlapList" list="overlapGroups" skip-form="true" paginate="false">
+                    <label text="No overlapping mappings detected" condition="!overlapGroups || overlapGroups.size() == 0"/>
+                </form-list>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>

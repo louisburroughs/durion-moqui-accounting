@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Posting Rule Set Management - List and Create/Edit</description>
+
+    <transition name="listPostingRuleSets" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listPostingRuleSets" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="getPostingRuleSet" method="get">
+        <actions>
+            <service-call name="durion.getPostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createPostingRuleSet" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createPostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="updatePostingRuleSet" method="put">
+        <actions>
+            <service-call name="durion.updatePostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="publishPostingRuleSet" method="post">
+        <actions>
+            <service-call name="durion.publishPostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="archivePostingRuleSet" method="post">
+        <actions>
+            <service-call name="durion.archivePostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="validatePostingRuleSet" method="post">
+        <actions>
+            <service-call name="durion.validatePostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <subscreens>
+        <subscreenItem name="PostingRuleSetFind" location="component://durion-accounting/screen/accounting/PostingRuleSetFind.xml" menu-title="Posting Rules" menu-index="20"/>
+        <subscreenItem name="PostingRuleSetDetail" location="component://durion-accounting/screen/accounting/PostingRuleSetDetail.xml" menu-title="Rule Set Detail" menu-index="30"/>
+    </subscreens>
+
+</screen>

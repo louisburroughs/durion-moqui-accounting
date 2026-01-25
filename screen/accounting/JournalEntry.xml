@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Journal Entry Management - List and Batch Entry</description>
+
+    <transition name="listJournalEntries" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listJournalEntries" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="getJournalEntry" method="get">
+        <actions>
+            <service-call name="durion.getJournalEntry" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createJournalEntry" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createJournalEntry" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="postJournalEntry" method="post">
+        <actions>
+            <service-call name="durion.postJournalEntry" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="reverseJournalEntry" method="post">
+        <actions>
+            <service-call name="durion.reverseJournalEntry" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <subscreens>
+        <subscreenItem name="JournalEntryFind" location="component://durion-accounting/screen/accounting/JournalEntryFind.xml" menu-title="Journal Entries" menu-index="30"/>
+        <subscreenItem name="JournalEntryEntry" location="component://durion-accounting/screen/accounting/JournalEntryEntry.xml" menu-title="Entry" menu-index="40"/>
+    </subscreens>
+
+</screen>

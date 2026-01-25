@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>GL Mapping Management - List and Create/Edit with effective-date management</description>
+
+    <transition name="listGLMappings" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listGLMappings" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="getGLMapping" method="get">
+        <actions>
+            <service-call name="durion.getGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createGLMapping" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="updateGLMapping" method="put">
+        <actions>
+            <service-call name="durion.updateGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="resolveGLMapping" method="post">
+        <actions>
+            <service-call name="durion.resolveGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <subscreens>
+        <subscreenItem name="GLMappingFind" location="component://durion-accounting/screen/accounting/GLMappingFind.xml" menu-title="GL Mappings" menu-index="50"/>
+        <subscreenItem name="GLMappingDetail" location="component://durion-accounting/screen/accounting/GLMappingDetail.xml" menu-title="Mapping Detail" menu-index="60"/>
+    </subscreens>
+
+</screen>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Find and List GL Accounts with filtering</description>
+
+    <transition name="getGLAccounts" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listGLAccounts" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createGLAccount" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createGLAccount" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <pre-actions>
+        <set field="pageTitle" value="Chart of Accounts"/>
+        <set field="pageDescription" value="Manage GL account master data and chart of accounts"/>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="Chart of Accounts"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text>Create and manage GL accounts for your organization. Accounts can be in DRAFT, ACTIVE, INACTIVE, or ARCHIVED status.</text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <container-panel id="GLAccountPanel" type="panel" title-icon="glyphicon-list">
+            <panel-heading>
+                <container-row>
+                    <row-col lg="6">
+                        <label text="GL Accounts" type="h4"/>
+                    </row-col>
+                    <row-col lg="6" style="text-align: right;">
+                        <link url="." text="Create GL Account" icon="glyphicon-plus" btn="primary" target="_blank"/>
+                    </row-col>
+                </container-row>
+            </panel-heading>
+
+            <panel-body>
+                <form-list name="GLAccountList" list="glAccounts" skip-form="true" paginate="true" 
+                           page-size="20" header-dialog="false" select-columns="true">
+                    <entity-find entity-name="durion.accounting.DurGLAccount" list="glAccounts" limit="20">
+                        <econdition field-name="organizationId" from="ec.user.organizationId"/>
+                        <order-by field-name="-createdAt"/>
+                    </entity-find>
+
+                    <field name="accountNumber" title="Account Number">
+                        <default-field><text-line size="12"/></default-field>
+                    </field>
+
+                    <field name="description" title="Description">
+                        <default-field><text-line size="40"/></default-field>
+                    </field>
+
+                    <field name="accountType" title="Type">
+                        <default-field>
+                            <drop-down current-description-field="accountTypeName">
+                                <option key="ASSET" text="Asset"/>
+                                <option key="LIABILITY" text="Liability"/>
+                                <option key="EQUITY" text="Equity"/>
+                                <option key="REVENUE" text="Revenue"/>
+                                <option key="EXPENSE" text="Expense"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="postingCategory" title="Posting Category">
+                        <default-field>
+                            <drop-down current-description-field="postingCategoryName">
+                                <option key="OPERATING" text="Operating"/>
+                                <option key="CAPITAL" text="Capital"/>
+                                <option key="NON_OPERATING" text="Non-Operating"/>
+                                <option key="ADJUSTMENT" text="Adjustment"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="status" title="Status">
+                        <default-field>
+                            <drop-down>
+                                <option key="DRAFT" text="Draft"/>
+                                <option key="ACTIVE" text="Active"/>
+                                <option key="INACTIVE" text="Inactive"/>
+                                <option key="ARCHIVED" text="Archived"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="createdBy" title="Created By">
+                        <default-field><text-line readonly="true"/></default-field>
+                    </field>
+
+                    <field name="createdAt" title="Created">
+                        <default-field><display type="date-time"/></default-field>
+                    </field>
+
+                    <field name="action" title="Actions">
+                        <default-field>
+                            <link url="." text="View" icon="glyphicon-eye-open"/>
+                            <link url="." text="Edit" icon="glyphicon-pencil" condition="glAccount.status == 'DRAFT'"/>
+                            <link url="." text="Activate" icon="glyphicon-ok" condition="glAccount.status == 'DRAFT'"/>
+                            <link url="." text="Deactivate" icon="glyphicon-remove" condition="glAccount.status == 'ACTIVE'"/>
+                            <link url="." text="Archive" icon="glyphicon-trash" condition="glAccount.status in ['ACTIVE', 'INACTIVE']"/>
+                        </default-field>
+                    </field>
+                </form-list>
+            </panel-body>
+        </container-panel>
+    </widgets>
+
+</screen>

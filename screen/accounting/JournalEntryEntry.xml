@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Journal Entry Batch Entry with real-time balance validation and dimension fields</description>
+
+    <transition name="submitEntry" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createJournalEntry" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response url="/accounting/JournalEntry/${result.journalEntry.journalEntryId}/detail" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="validateBalance" method="post">
+        <actions>
+            <set field="debitTotal" from="0.0"/>
+            <set field="creditTotal" from="0.0"/>
+            <iterate list="lineItems" entry="line">
+                <if condition="line.debitAmount">
+                    <set field="debitTotal" from="debitTotal + line.debitAmount"/>
+                </if>
+                <if condition="line.creditAmount">
+                    <set field="creditTotal" from="creditTotal + line.creditAmount"/>
+                </if>
+            </iterate>
+            <set field="balanced" from="(debitTotal - creditTotal).abs() &lt; 0.01"/>
+            <set field="difference" from="debitTotal - creditTotal"/>
+        </actions>
+        <default-response type="json" parameter="balanced,debitTotal,creditTotal,difference"/>
+    </transition>
+
+    <transition name="postEntry" method="post">
+        <actions>
+            <service-call name="durion.postJournalEntry" in-map="[journalEntryId: journalEntryId]" out-map="result"/>
+        </actions>
+        <default-response url="/accounting/JournalEntry" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="reverseEntry" method="post">
+        <actions>
+            <service-call name="durion.reverseJournalEntry" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response url="/accounting/JournalEntry" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <pre-actions>
+        <if condition="journalEntryId">
+            <then>
+                <service-call name="durion.getJournalEntry" in-map="[journalEntryId: journalEntryId]" out-map="result"/>
+                <set field="journalEntry" from="result.journalEntry"/>
+                <set field="pageTitle" value="Journal Entry: ${journalEntry.journalEntryId}"/>
+                <set field="isEdit" from="journalEntry.status == 'DRAFT'"/>
+            </then>
+            <else>
+                <set field="pageTitle" value="New Journal Entry"/>
+                <set field="journalEntry" from="[status: 'DRAFT', lines: []]"/>
+                <set field="isEdit" from="true"/>
+            </else>
+        </if>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="${pageTitle}"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <condition condition="isEdit">
+                            <text>Enter debit and credit lines. All lines must balance (debits = credits, ±$0.01 tolerance). Add dimension values (cost center, location, etc.) if required.</text>
+                            <else>
+                            <text>This journal entry has been posted and is immutable. Use the Reverse action to create an offsetting entry if needed.</text>
+                            </else>
+                        </condition>
+                    </text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <form name="JournalEntryForm" transition="submitEntry" method="post" skip-form="true">
+            <field name="journalEntryId"><default-field><hidden/></default-field></field>
+
+            <field name="transactionDate" title="Transaction Date" required="true">
+                <default-field>
+                    <date-time type="date-time" format="yyyy-MM-dd'T'HH:mm:ss" 
+                              readonly="!isEdit"/>
+                </default-field>
+            </field>
+
+            <field name="description" title="Description">
+                <default-field>
+                    <text-line placeholder="e.g., Monthly rent expense" maxlength="200"
+                              readonly="!isEdit"/>
+                </default-field>
+            </field>
+
+            <field name="memo" title="Memo">
+                <default-field>
+                    <text-area rows="2" maxlength="500" placeholder="Optional notes about this entry"
+                              readonly="!isEdit"/>
+                </default-field>
+            </field>
+
+            <field name="sourceEventId" title="Source Event ID">
+                <default-field>
+                    <text-line readonly="true" placeholder="Auto-populated if from event"/>
+                </default-field>
+            </field>
+
+            <field name="status" title="Status">
+                <default-field>
+                    <display text="${journalEntry.status}"/>
+                </default-field>
+            </field>
+
+            <field name="entries" title="Entry Lines">
+                <default-field>
+                    <section name="LinesSection">
+                        <label text="Debit and Credit Lines" type="h5"/>
+                        <render-mode type="text">
+                            <text type="table">
+                                <row>
+                                    <column><strong>GL Account</strong></column>
+                                    <column><strong>Description</strong></column>
+                                    <column><strong>Debit</strong></column>
+                                    <column><strong>Credit</strong></column>
+                                    <column><strong>Cost Center</strong></column>
+                                    <column><strong>Location</strong></column>
+                                    <column><strong>Business Unit</strong></column>
+                                </row>
+                            </text>
+                        </render-mode>
+
+                        <iterate list="journalEntry.lines" entry="line" index="lineIdx">
+                            <field name="line_${lineIdx}_glAccountId" title="GL Account">
+                                <default-field>
+                                    <lookup entity-name="durion.accounting.DurGLAccount" 
+                                           field-name="glAccountId"
+                                           find-description="true"
+                                           readonly="!isEdit">
+                                        <econdition field-name="organizationId" from="ec.user.organizationId"/>
+                                        <econdition field-name="status" value="ACTIVE"/>
+                                    </lookup>
+                                </default-field>
+                            </field>
+
+                            <field name="line_${lineIdx}_description" title="Description">
+                                <default-field>
+                                    <text-line maxlength="200" readonly="!isEdit"/>
+                                </default-field>
+                            </field>
+
+                            <field name="line_${lineIdx}_debitAmount" title="Debit">
+                                <default-field>
+                                    <text-line size="10" placeholder="0.00" readonly="!isEdit"/>
+                                </default-field>
+                            </field>
+
+                            <field name="line_${lineIdx}_creditAmount" title="Credit">
+                                <default-field>
+                                    <text-line size="10" placeholder="0.00" readonly="!isEdit"/>
+                                </default-field>
+                            </field>
+
+                            <field name="line_${lineIdx}_costCenter" title="Cost Center">
+                                <default-field>
+                                    <text-line placeholder="Optional" readonly="!isEdit"/>
+                                </default-field>
+                            </field>
+
+                            <field name="line_${lineIdx}_location" title="Location">
+                                <default-field>
+                                    <text-line placeholder="Optional" readonly="!isEdit"/>
+                                </default-field>
+                            </field>
+
+                            <field name="line_${lineIdx}_businessUnit" title="Business Unit">
+                                <default-field>
+                                    <text-line placeholder="Optional" readonly="!isEdit"/>
+                                </default-field>
+                            </field>
+                        </iterate>
+
+                        <field name="addLine">
+                            <default-field condition="isEdit">
+                                <link url="." text="+ Add Line" icon="glyphicon-plus" btn="default"/>
+                            </default-field>
+                        </field>
+                    </section>
+                </default-field>
+            </field>
+
+        </form>
+
+        <container-panel id="BalanceCheckPanel" type="panel" title-icon="glyphicon-ok-circle">
+            <panel-heading>
+                <label text="Balance Summary" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <render-mode type="text">
+                    <text type="table">
+                        <row>
+                            <column><strong>Total Debits:</strong></column>
+                            <column>${journalEntry.totalDebit ?: '0.00'}</column>
+                        </row>
+                        <row>
+                            <column><strong>Total Credits:</strong></column>
+                            <column>${journalEntry.totalCredit ?: '0.00'}</column>
+                        </row>
+                        <row>
+                            <column><strong>Difference (must be ±$0.01):</strong></column>
+                            <column style="color: ${(journalEntry.totalDebit - journalEntry.totalCredit).abs() &lt; 0.01 ? 'green' : 'red'}">
+                                ${(journalEntry.totalDebit - journalEntry.totalCredit)}
+                            </column>
+                        </row>
+                        <row>
+                            <column><strong>Status:</strong></column>
+                            <column style="color: ${(journalEntry.totalDebit - journalEntry.totalCredit).abs() &lt; 0.01 ? 'green' : 'red'}">
+                                ${(journalEntry.totalDebit - journalEntry.totalCredit).abs() &lt; 0.01 ? '✓ BALANCED' : '✗ UNBALANCED'}
+                            </column>
+                        </row>
+                    </text>
+                </render-mode>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="ActionPanel" type="panel" title-icon="glyphicon-cog"
+                        condition="journalEntryId">
+            <panel-heading>
+                <label text="Actions" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <form name="PostForm" transition="postEntry" method="post"
+                     condition="journalEntry.status == 'DRAFT'">
+                    <field name="journalEntryId"><default-field><hidden/></default-field></field>
+                    <field name="postAction"><default-field>
+                        <submit button-type="success" text="Post Entry (DRAFT → POSTED)"/>
+                    </default-field></field>
+                </form>
+
+                <form name="ReverseForm" transition="reverseEntry" method="post"
+                     condition="journalEntry.status == 'POSTED'">
+                    <field name="journalEntryId"><default-field><hidden/></default-field></field>
+                    <field name="reversalReason" title="Reason for Reversal" required="true">
+                        <default-field>
+                            <text-line placeholder="e.g., Error correction, canceled transaction"/>
+                        </default-field>
+                    </field>
+                    <field name="reverseAction"><default-field>
+                        <submit button-type="warning" text="Reverse Entry"/>
+                    </default-field></field>
+                </form>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>

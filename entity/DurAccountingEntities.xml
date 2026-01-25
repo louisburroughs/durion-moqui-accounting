@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+
+    <!-- ============================================ -->
+    <!-- GL ACCOUNT ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurGLAccount" package="durion.accounting" cache="true">
+        <description>Chart of accounts - GL account master data</description>
+        <field name="glAccountId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain</description>
+        </field>
+        <field name="accountNumber" type="text-short" is-pk="false">
+            <description>GL account number (e.g., 1000, 2100, 4500)</description>
+        </field>
+        <field name="description" type="text-long"/>
+        <field name="accountType" type="text-short">
+            <description>ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE</description>
+        </field>
+        <field name="postingCategory" type="text-short">
+            <description>OPERATING, CAPITAL, NON_OPERATING, ADJUSTMENT</description>
+        </field>
+        <field name="status" type="text-short" default-value="DRAFT">
+            <description>DRAFT, ACTIVE, INACTIVE, ARCHIVED</description>
+        </field>
+        <field name="effectiveDate" type="date"/>
+        <field name="inactiveDate" type="date"/>
+        <field name="parentGlAccountId" type="id">
+            <description>For hierarchical roll-up reporting</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <field name="createdBy" type="id" is-fk="true"/>
+        <field name="updatedBy" type="id" is-fk="true"/>
+        <index name="idx_org_account_number" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="accountNumber"/>
+        </index>
+        <index name="idx_account_status" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="status"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- POSTING RULE SET ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurPostingRuleSet" package="durion.accounting" cache="true">
+        <description>Posting rule configuration sets (versioned, immutable when PUBLISHED)</description>
+        <field name="ruleSetId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain</description>
+        </field>
+        <field name="name" type="text-short" required="true">
+            <description>Rule set name (e.g., 'AR Auto-Post v1', 'Inventory Accrual v2')</description>
+        </field>
+        <field name="version" type="number-integer" default-value="1">
+            <description>Auto-incrementing version number</description>
+        </field>
+        <field name="description" type="text-long"/>
+        <field name="status" type="text-short" default-value="DRAFT">
+            <description>DRAFT, PUBLISHED, ARCHIVED (immutable when PUBLISHED)</description>
+        </field>
+        <field name="rulesJson" type="text-very-long">
+            <description>JSON array of posting rules: [{glAccountId, dimension, priority, postingCategory}]</description>
+        </field>
+        <field name="publishedDate" type="date-time"/>
+        <field name="archivedDate" type="date-time"/>
+        <field name="replacedByRuleSetId" type="id">
+            <description>References newer version when this set is archived</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <field name="createdBy" type="id" is-fk="true"/>
+        <field name="updatedBy" type="id" is-fk="true"/>
+        <index name="idx_ruleset_name_org" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="name"/>
+        </index>
+        <index name="idx_ruleset_status" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="status"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- JOURNAL ENTRY ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurJournalEntry" package="durion.accounting" cache="false">
+        <description>Journal entries (atomic batches of debits/credits, posted atomically)</description>
+        <field name="journalEntryId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain</description>
+        </field>
+        <field name="transactionDate" type="date-time" required="true">
+            <description>Date/time of the transaction event</description>
+        </field>
+        <field name="description" type="text-short"/>
+        <field name="memo" type="text-long"/>
+        <field name="status" type="text-short" default-value="DRAFT">
+            <description>DRAFT, POSTED (immutable thereafter)</description>
+        </field>
+        <field name="totalDebit" type="currency-precise">
+            <description>Sum of all debit lines (for validation cache)</description>
+        </field>
+        <field name="totalCredit" type="currency-precise">
+            <description>Sum of all credit lines (must equal totalDebit when posted)</description>
+        </field>
+        <field name="sourceEventId" type="id">
+            <description>FK to source accounting event (for traceability)</description>
+        </field>
+        <field name="reversalOfJournalEntryId" type="id">
+            <description>If reversal entry, references the entry being reversed</description>
+        </field>
+        <field name="postingDate" type="date-time">
+            <description>Timestamp when entry transitioned to POSTED</description>
+        </field>
+        <field name="postedBy" type="id" is-fk="true">
+            <description>User who posted this entry</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <field name="createdBy" type="id" is-fk="true"/>
+        <field name="updatedBy" type="id" is-fk="true"/>
+        <index name="idx_je_transaction_date" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="transactionDate"/>
+        </index>
+        <index name="idx_je_status" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="status"/>
+        </index>
+        <index name="idx_je_source_event" unique="false">
+            <index-field name="sourceEventId"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- JOURNAL ENTRY LINE ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurJournalEntryLine" package="durion.accounting" cache="false">
+        <description>Individual debit/credit lines within a journal entry</description>
+        <field name="journalEntryLineId" type="id" is-pk="true"/>
+        <field name="journalEntryId" type="id" is-pk="true" is-fk="true">
+            <description>FK to DurJournalEntry</description>
+        </field>
+        <field name="glAccountId" type="id" is-fk="true" required="true">
+            <description>FK to DurGLAccount</description>
+        </field>
+        <field name="debitAmount" type="currency-precise"/>
+        <field name="creditAmount" type="currency-precise"/>
+        <field name="description" type="text-short"/>
+        <field name="lineSequence" type="number-integer">
+            <description>Display order within the journal entry</description>
+        </field>
+        <field name="dimensionValues" type="text-very-long">
+            <description>JSON object of {dimensionKey: dimensionValue} for cost center, location, etc.</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <index name="idx_jel_gl_account" unique="false">
+            <index-field name="glAccountId"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- GL MAPPING ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurGLMapping" package="durion.accounting" cache="true">
+        <description>External code to GL account mappings with effective-date and dimension matching</description>
+        <field name="mappingId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain</description>
+        </field>
+        <field name="sourceSystem" type="text-short" required="true">
+            <description>Source system code (e.g., 'ERP_LEGACY', 'WMS', 'BILLING')</description>
+        </field>
+        <field name="externalCode" type="text-short" required="true">
+            <description>External code from source system</description>
+        </field>
+        <field name="glAccountId" type="id" is-fk="true" required="true">
+            <description>FK to DurGLAccount</description>
+        </field>
+        <field name="effectiveStartDate" type="date" required="true">
+            <description>Mapping effective start date (inclusive)</description>
+        </field>
+        <field name="effectiveEndDate" type="date">
+            <description>Mapping effective end date (inclusive, null = no expiration)</description>
+        </field>
+        <field name="dimensionMatchJson" type="text-very-long">
+            <description>JSON object specifying dimension constraints: {businessUnit, location, costCenter, etc.}</description>
+        </field>
+        <field name="priority" type="number-integer" default-value="0">
+            <description>Resolution priority (higher wins); allows overlapping mappings with preference</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <field name="createdBy" type="id" is-fk="true"/>
+        <field name="updatedBy" type="id" is-fk="true"/>
+        <index name="idx_mapping_source_code" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="sourceSystem"/>
+            <index-field name="externalCode"/>
+        </index>
+        <index name="idx_mapping_gl_account" unique="false">
+            <index-field name="glAccountId"/>
+        </index>
+        <index name="idx_mapping_effective_dates" unique="false">
+            <index-field name="effectiveStartDate"/>
+            <index-field name="effectiveEndDate"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- POSTING CATEGORY ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurPostingCategory" package="durion.accounting" cache="true">
+        <description>Reference data for posting categories (OPERATING, CAPITAL, NON_OPERATING, ADJUSTMENT)</description>
+        <field name="categoryId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain (null = system-wide)</description>
+        </field>
+        <field name="categoryCode" type="text-short" required="true">
+            <description>Code for posting category</description>
+        </field>
+        <field name="description" type="text-short"/>
+        <field name="requiresApproval" type="text-indicator" default-value="N">
+            <description>Y/N: entries posted to this category require approval</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <index name="idx_category_code" unique="false">
+            <index-field name="categoryCode"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- MAPPING KEY ENTITY -->
+    <!-- ============================================ -->
+    <entity entity-name="DurMappingKey" package="durion.accounting" cache="true">
+        <description>Reference data for supported GL mapping dimensions (business unit, location, cost center, etc.)</description>
+        <field name="keyId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain (null = system-wide)</description>
+        </field>
+        <field name="dimension" type="text-short" required="true">
+            <description>Dimension key name (BUSINESS_UNIT, LOCATION, COST_CENTER, DEPARTMENT, PROJECT, etc.)</description>
+        </field>
+        <field name="displayLabel" type="text-short">
+            <description>User-friendly label for this dimension in UI</description>
+        </field>
+        <field name="description" type="text-long"/>
+        <field name="isRequired" type="text-indicator" default-value="N">
+            <description>Y/N: dimension required on all mapping rules</description>
+        </field>
+        <field name="allowedValues" type="text-very-long">
+            <description>JSON array of allowed dimension values (null = any value)</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <index name="idx_dimension_org" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="dimension"/>
+        </index>
+    </entity>
+
+    <!-- ============================================ -->
+    <!-- VENDOR BILL ENTITY (AP) -->
+    <!-- ============================================ -->
+    <entity entity-name="DurVendorBill" package="durion.accounting" cache="false">
+        <description>Vendor bills (AP) with traceability to accounting events and journal entries</description>
+        <field name="vendorBillId" type="id" is-pk="true"/>
+        <field name="organizationId" type="id" is-fk="true">
+            <description>FK to Organization domain</description>
+        </field>
+        <field name="vendorId" type="id" is-fk="true" required="true">
+            <description>FK to Vendor (in People domain)</description>
+        </field>
+        <field name="billNumber" type="text-short" required="true">
+            <description>Vendor's invoice number</description>
+        </field>
+        <field name="billAmount" type="currency-precise" required="true"/>
+        <field name="receivedDate" type="date" required="true">
+            <description>Date bill was received in the system</description>
+        </field>
+        <field name="status" type="text-short" default-value="RECEIVED">
+            <description>RECEIVED, APPROVED, REJECTED, PAID, PARTIALLY_PAID</description>
+        </field>
+        <field name="approvalDate" type="date-time"/>
+        <field name="approvedBy" type="id" is-fk="true"/>
+        <field name="rejectionReason" type="text-long"/>
+        <field name="rejectedDate" type="date-time"/>
+        <field name="rejectedBy" type="id" is-fk="true"/>
+        <field name="amountPaid" type="currency-precise" default-value="0.00">
+            <description>Cumulative amount paid against this bill</description>
+        </field>
+        <field name="sourceEventId" type="id">
+            <description>FK to source accounting event (for traceability)</description>
+        </field>
+        <field name="journalEntryId" type="id" is-fk="true">
+            <description>FK to DurJournalEntry (posted payable entry)</description>
+        </field>
+        <field name="createdAt" type="date-time" default-value="now()"/>
+        <field name="updatedAt" type="date-time" default-value="now()"/>
+        <field name="createdBy" type="id" is-fk="true"/>
+        <field name="updatedBy" type="id" is-fk="true"/>
+        <index name="idx_vendor_bill_number" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="vendorId"/>
+            <index-field name="billNumber"/>
+        </index>
+        <index name="idx_vendor_bill_status" unique="false">
+            <index-field name="organizationId"/>
+            <index-field name="status"/>
+        </index>
+        <index name="idx_vendor_bill_received_date" unique="false">
+            <index-field name="receivedDate"/>
+        </index>
+    </entity>
+
+</entities>

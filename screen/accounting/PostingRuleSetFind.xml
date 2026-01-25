@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Find and List Posting Rule Sets with version management</description>
+
+    <transition name="getRuleSets" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listPostingRuleSets" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createRuleSet" method="post">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createPostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <pre-actions>
+        <set field="pageTitle" value="Posting Rule Sets"/>
+        <set field="pageDescription" value="Manage GL posting rule configurations and versions"/>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="Posting Rule Sets"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text>Create and manage posting rule sets that define how transactions are converted to GL entries. Rules are versioned and immutable once published.</text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <container-panel id="PostingRuleSetsPanel" type="panel" title-icon="glyphicon-list">
+            <panel-heading>
+                <container-row>
+                    <row-col lg="6">
+                        <label text="Rule Sets" type="h4"/>
+                    </row-col>
+                    <row-col lg="6" style="text-align: right;">
+                        <link url="." text="Create Rule Set" icon="glyphicon-plus" btn="primary" target="_blank"/>
+                    </row-col>
+                </container-row>
+            </panel-heading>
+
+            <panel-body>
+                <form-list name="PostingRuleSetList" list="ruleSets" skip-form="true" paginate="true" 
+                           page-size="20" header-dialog="false" select-columns="true">
+                    <entity-find entity-name="durion.accounting.DurPostingRuleSet" list="ruleSets" limit="20">
+                        <econdition field-name="organizationId" from="ec.user.organizationId"/>
+                        <order-by field-name="-createdAt"/>
+                    </entity-find>
+
+                    <field name="name" title="Rule Set Name">
+                        <default-field><text-line size="30"/></default-field>
+                    </field>
+
+                    <field name="version" title="Version">
+                        <default-field><display/></default-field>
+                    </field>
+
+                    <field name="description" title="Description">
+                        <default-field><text-line size="50"/></default-field>
+                    </field>
+
+                    <field name="status" title="Status">
+                        <default-field>
+                            <drop-down current-description-field="statusName">
+                                <option key="DRAFT" text="Draft"/>
+                                <option key="PUBLISHED" text="Published"/>
+                                <option key="ARCHIVED" text="Archived"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="publishedDate" title="Published Date">
+                        <default-field><display type="date-time" condition="ruleSet.publishedDate"/></default-field>
+                    </field>
+
+                    <field name="archivedDate" title="Archived Date">
+                        <default-field><display type="date-time" condition="ruleSet.archivedDate"/></default-field>
+                    </field>
+
+                    <field name="replacedByRuleSetId" title="Replaced By">
+                        <default-field><text-line readonly="true" condition="ruleSet.replacedByRuleSetId"/></default-field>
+                    </field>
+
+                    <field name="createdAt" title="Created">
+                        <default-field><display type="date-time"/></default-field>
+                    </field>
+
+                    <field name="action" title="Actions">
+                        <default-field>
+                            <link url="." text="View" icon="glyphicon-eye-open"/>
+                            <link url="." text="Edit" icon="glyphicon-pencil" condition="ruleSet.status == 'DRAFT'"/>
+                            <link url="." text="Validate" icon="glyphicon-check" condition="ruleSet.status == 'DRAFT'"/>
+                            <link url="." text="Publish" icon="glyphicon-ok" condition="ruleSet.status == 'DRAFT'"/>
+                            <link url="." text="Archive" icon="glyphicon-trash" condition="ruleSet.status == 'PUBLISHED'"/>
+                        </default-field>
+                    </field>
+                </form-list>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="VersionHistoryPanel" type="panel" title-icon="glyphicon-time">
+            <panel-heading>
+                <label text="Version History (by Rule Set Name)" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <form-list name="RuleSetVersions" list="versions" skip-form="true" paginate="false">
+                    <label text="All versions across all rule sets, newest first" type="small"/>
+                    <field name="name" title="Rule Set Name"/>
+                    <field name="version" title="Version"/>
+                    <field name="status" title="Status"/>
+                    <field name="publishedDate" title="Published"><display type="date-time"/></field>
+                    <field name="replacedBy" title="Replaced By"/>
+                </form-list>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:schemaLocation="http://moqui.org/xsd/screen-3.xsd http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>GL Account Master Management - List and Create/Edit</description>
+
+    <subscreens>
+        <subscreenItem name="GLAccountFind" location="component://durion-accounting/screen/accounting/GLAccountFind.xml" menu-title="Chart of Accounts" menu-index="10"/>
+        <subscreenItem name="GLAccountDetail" location="component://durion-accounting/screen/accounting/GLAccountDetail.xml" menu-title="GL Account Detail" menu-index="20"/>
+    </subscreens>
+
+    <transition name="listGLAccounts" method="get">
+        <description>List GL accounts with pagination and filtering</description>
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listGLAccounts" in-map="parameters" out-map="result"/>
+            <set field="glAccounts" from="result.glAccounts"/>
+            <set field="totalElements" from="result.totalElements"/>
+            <set field="totalPages" from="result.totalPages"/>
+        </actions>
+        <default-response type="json" parameter="glAccounts,totalElements,totalPages,currentPage"/>
+    </transition>
+
+    <transition name="getGLAccount" method="get">
+        <description>Get a single GL account detail</description>
+        <actions>
+            <service-call name="durion.getGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response type="json" parameter="glAccount"/>
+    </transition>
+
+    <transition name="createGLAccount" method="post">
+        <description>Create a new GL account (DRAFT status)</description>
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response type="json" parameter="glAccount"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="updateGLAccount" method="put">
+        <description>Update a GL account (DRAFT status only)</description>
+        <actions>
+            <service-call name="durion.updateGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response type="json" parameter="glAccount"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="activateGLAccount" method="post">
+        <description>Activate a GL account (DRAFT → ACTIVE)</description>
+        <actions>
+            <service-call name="durion.activateGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response type="json" parameter="glAccount"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="deactivateGLAccount" method="post">
+        <description>Deactivate a GL account (ACTIVE → INACTIVE)</description>
+        <actions>
+            <service-call name="durion.deactivateGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response type="json" parameter="glAccount"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="archiveGLAccount" method="post">
+        <description>Archive a GL account (requires accounting:coa:deactivate permission)</description>
+        <actions>
+            <service-call name="durion.archiveGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response type="json" parameter="glAccount"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="getGLAccountBalance" method="get">
+        <description>Get current balance for a GL account</description>
+        <actions>
+            <service-call name="durion.getGLAccountBalance" in-map="parameters" out-map="result"/>
+            <set field="balance" from="result.balance"/>
+            <set field="lastUpdated" from="result.lastUpdated"/>
+        </actions>
+        <default-response type="json" parameter="balance,lastUpdated"/>
+    </transition>
+
+</screen>

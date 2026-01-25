@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Create/Edit GL Account with state transitions</description>
+
+    <transition name="saveGLAccount" method="post">
+        <actions>
+            <if condition="glAccountId">
+                <then>
+                    <service-call name="durion.updateGLAccount" in-map="parameters" out-map="result"/>
+                </then>
+                <else>
+                    <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+                    <service-call name="durion.createGLAccount" in-map="parameters" out-map="result"/>
+                </else>
+            </if>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response url="/accounting/GLAccount/${result.glAccount.glAccountId}/detail" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="activateGLAccount" method="post">
+        <actions>
+            <service-call name="durion.activateGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response url="." type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="deactivateGLAccount" method="post">
+        <actions>
+            <service-call name="durion.deactivateGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response url="." type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="archiveGLAccount" method="post">
+        <actions>
+            <service-call name="durion.archiveGLAccount" in-map="parameters" out-map="result"/>
+            <set field="glAccount" from="result.glAccount"/>
+        </actions>
+        <default-response url="/accounting/GLAccount" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <pre-actions>
+        <if condition="glAccountId">
+            <then>
+                <service-call name="durion.getGLAccount" in-map="[glAccountId: glAccountId]" out-map="result"/>
+                <set field="glAccount" from="result.glAccount"/>
+                <set field="pageTitle" value="GL Account: ${glAccount.accountNumber}"/>
+            </then>
+            <else>
+                <set field="pageTitle" value="Create GL Account"/>
+                <set field="glAccount" from="[status: 'DRAFT']"/>
+            </else>
+        </if>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="${pageTitle}"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <condition condition="glAccountId">
+                            <text>Edit GL account ${glAccount.accountNumber}. Accounts in DRAFT status can be modified; ACTIVE accounts can only be deactivated.</text>
+                            <else>
+                            <text>Create a new GL account for your organization. New accounts start in DRAFT status.</text>
+                            </else>
+                        </condition>
+                    </text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <form name="GLAccountForm" transition="saveGLAccount" method="post">
+            <field name="glAccountId"><default-field><hidden/></default-field></field>
+
+            <field name="accountNumber" title="Account Number" required="true">
+                <default-field>
+                    <text-line placeholder="e.g., 1000, 2100, 4500" 
+                               readonly="glAccount.status != 'DRAFT'"
+                               maxlength="20"/>
+                </default-field>
+            </field>
+
+            <field name="description" title="Description" required="true">
+                <default-field>
+                    <text-area rows="2" maxlength="500"/>
+                </default-field>
+            </field>
+
+            <field name="accountType" title="Account Type" required="true">
+                <default-field>
+                    <drop-down allow-empty="false">
+                        <option key="ASSET" text="Asset"/>
+                        <option key="LIABILITY" text="Liability"/>
+                        <option key="EQUITY" text="Equity"/>
+                        <option key="REVENUE" text="Revenue"/>
+                        <option key="EXPENSE" text="Expense"/>
+                    </drop-down>
+                </default-field>
+            </field>
+
+            <field name="postingCategory" title="Posting Category">
+                <default-field>
+                    <drop-down allow-empty="true">
+                        <option key="" text="— Select —"/>
+                        <option key="OPERATING" text="Operating"/>
+                        <option key="CAPITAL" text="Capital"/>
+                        <option key="NON_OPERATING" text="Non-Operating"/>
+                        <option key="ADJUSTMENT" text="Adjustment"/>
+                    </drop-down>
+                </default-field>
+            </field>
+
+            <field name="parentGlAccountId" title="Parent Account (for Roll-up)">
+                <default-field>
+                    <text-line placeholder="Optional: parent GL account ID for hierarchical roll-up"/>
+                </default-field>
+            </field>
+
+            <field name="status" title="Status">
+                <default-field>
+                    <display text="${glAccount.status}"/>
+                </default-field>
+            </field>
+
+            <field name="effectiveDate" title="Effective Date">
+                <default-field>
+                    <date-time type="date" format="yyyy-MM-dd" 
+                              readonly="glAccount.status != 'DRAFT'"/>
+                </default-field>
+            </field>
+
+            <field name="createdAt" title="Created">
+                <default-field condition="glAccountId">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="createdBy" title="Created By">
+                <default-field condition="glAccountId">
+                    <display/>
+                </default-field>
+            </field>
+
+            <field name="updatedAt" title="Last Updated">
+                <default-field condition="glAccountId">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="updatedBy" title="Updated By">
+                <default-field condition="glAccountId">
+                    <display/>
+                </default-field>
+            </field>
+
+            <field name="submitButton" title="Save">
+                <default-field>
+                    <submit button-type="primary" text="Save Account" condition="glAccount.status == 'DRAFT'"/>
+                    <submit button-type="default" text="Save" condition="glAccount.status != 'DRAFT'" disabled="true"/>
+                </default-field>
+            </field>
+        </form>
+
+        <container-panel id="StateTransitions" type="panel" title-icon="glyphicon-cog" 
+                        condition="glAccountId">
+            <panel-heading>
+                <label text="State Transitions" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <strong>Current Status:</strong> ${glAccount.status}
+                    </text>
+                </render-mode>
+
+                <form name="ActivateForm" transition="activateGLAccount" method="post"
+                     condition="glAccount.status == 'DRAFT'">
+                    <field name="glAccountId"><default-field><hidden/></default-field></field>
+                    <field name="effectiveDate" title="Activation Date" required="true">
+                        <default-field>
+                            <date-time type="date" format="yyyy-MM-dd"/>
+                        </default-field>
+                    </field>
+                    <field name="activateAction"><default-field>
+                        <submit button-type="success" text="Activate Account (DRAFT → ACTIVE)"/>
+                    </default-field></field>
+                </form>
+
+                <form name="DeactivateForm" transition="deactivateGLAccount" method="post"
+                     condition="glAccount.status == 'ACTIVE'">
+                    <field name="glAccountId"><default-field><hidden/></default-field></field>
+                    <field name="effectiveDate" title="Deactivation Date" required="true">
+                        <default-field>
+                            <date-time type="date" format="yyyy-MM-dd"/>
+                        </default-field>
+                    </field>
+                    <field name="deactivateAction"><default-field>
+                        <submit button-type="warning" text="Deactivate Account (ACTIVE → INACTIVE)"/>
+                    </default-field></field>
+                </form>
+
+                <form name="ArchiveForm" transition="archiveGLAccount" method="post"
+                     condition="glAccount.status in ['ACTIVE', 'INACTIVE']">
+                    <field name="glAccountId"><default-field><hidden/></default-field></field>
+                    <field name="archiveAction"><default-field>
+                        <submit button-type="danger" text="Archive Account"/>
+                    </default-field></field>
+                </form>
+
+                <section name="DraftOnlySection" condition="glAccount.status != 'DRAFT'">
+                    <label text="⚠️ Only DRAFT accounts can be edited. Activate first if needed." type="h6"/>
+                </section>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="BalanceInfo" type="panel" title-icon="glyphicon-signal"
+                        condition="glAccountId">
+            <panel-heading>
+                <label text="Account Balance" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <form name="GetBalanceForm" transition="getGLAccountBalance" method="get">
+                    <field name="glAccountId"><default-field><hidden/></default-field></field>
+                    <field name="getBalance"><default-field>
+                        <submit button-type="info" text="Refresh Balance" ajax="true"/>
+                    </default-field></field>
+                </form>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>

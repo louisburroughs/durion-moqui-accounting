@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Create/Edit GL Mapping with effective-date and dimension configuration</description>
+
+    <transition name="saveMapping" method="post">
+        <actions>
+            <if condition="mappingId">
+                <then>
+                    <service-call name="durion.updateGLMapping" in-map="parameters" out-map="result"/>
+                </then>
+                <else>
+                    <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+                    <service-call name="durion.createGLMapping" in-map="parameters" out-map="result"/>
+                </else>
+            </if>
+            <set field="mapping" from="result.mapping"/>
+        </actions>
+        <default-response url="/accounting/GLMapping/${result.mapping.mappingId}/detail" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="testResolution" method="post">
+        <actions>
+            <service-call name="durion.resolveGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="duplicateMapping" method="post">
+        <actions>
+            <service-call name="durion.getGLMapping" in-map="[mappingId: mappingId]" out-map="result"/>
+            <set field="sourceMapping" from="result.mapping"/>
+            <set field="parameters.sourceSystem" from="sourceMapping.sourceSystem"/>
+            <set field="parameters.externalCode" from="sourceMapping.externalCode"/>
+            <set field="parameters.glAccountId" from="sourceMapping.glAccountId"/>
+            <set field="parameters.effectiveStartDate" from="sourceMapping.effectiveStartDate"/>
+            <set field="parameters.effectiveEndDate" from="sourceMapping.effectiveEndDate"/>
+            <set field="parameters.dimensions" from="sourceMapping.dimensionMatchJson"/>
+            <set field="parameters.priority" from="sourceMapping.priority"/>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.createGLMapping" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response url="/accounting/GLMapping/${result.mapping.mappingId}/detail" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <pre-actions>
+        <if condition="mappingId">
+            <then>
+                <service-call name="durion.getGLMapping" in-map="[mappingId: mappingId]" out-map="result"/>
+                <set field="mapping" from="result.mapping"/>
+                <set field="pageTitle" value="GL Mapping: ${mapping.sourceSystem} → ${mapping.externalCode}"/>
+            </then>
+            <else>
+                <set field="pageTitle" value="Create GL Mapping"/>
+                <set field="mapping" from="[priority: 0]"/>
+            </else>
+        </if>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="${pageTitle}"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <condition condition="mappingId">
+                            <text>Edit GL mapping from ${mapping.sourceSystem}:${mapping.externalCode} to GL account ${mapping.glAccountId}.</text>
+                            <else>
+                            <text>Create a new GL mapping to connect external codes to GL accounts. Supports effective-date ranges and dimension-based matching.</text>
+                            </else>
+                        </condition>
+                    </text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <form name="GLMappingForm" transition="saveMapping" method="post">
+            <field name="mappingId"><default-field><hidden/></default-field></field>
+
+            <field name="sourceSystem" title="Source System" required="true">
+                <default-field>
+                    <text-line placeholder="e.g., ERP_LEGACY, WMS, BILLING" maxlength="50"/>
+                </default-field>
+            </field>
+
+            <field name="externalCode" title="External Code" required="true">
+                <default-field>
+                    <text-line placeholder="e.g., 1000-COGS, ACCT-AR-001" maxlength="50"/>
+                </default-field>
+            </field>
+
+            <field name="glAccountId" title="GL Account" required="true">
+                <default-field>
+                    <lookup entity-name="durion.accounting.DurGLAccount" 
+                           field-name="glAccountId"
+                           find-description="true">
+                        <econdition field-name="organizationId" from="ec.user.organizationId"/>
+                        <econdition field-name="status" value="ACTIVE"/>
+                    </lookup>
+                </default-field>
+            </field>
+
+            <field name="effectiveStartDate" title="Effective Start Date" required="true">
+                <default-field>
+                    <date-time type="date" format="yyyy-MM-dd" help-text="Mapping is valid from this date (inclusive)"/>
+                </default-field>
+            </field>
+
+            <field name="effectiveEndDate" title="Effective End Date">
+                <default-field>
+                    <date-time type="date" format="yyyy-MM-dd" help-text="Mapping is valid until this date (inclusive). Leave blank for no expiration."/>
+                </default-field>
+            </field>
+
+            <field name="priority" title="Priority" required="true">
+                <default-field>
+                    <text-line size="5" default-value="0" placeholder="0-100 (higher wins)"
+                              help-text="If multiple mappings match the external code, highest priority is used"/>
+                </default-field>
+            </field>
+
+            <section name="DimensionsSection">
+                <label text="Dimension Matching (Optional)" type="h5"/>
+                <render-mode type="text">
+                    <text type="p">
+                        <label text="Optionally restrict this mapping to specific dimension values. Leave empty to match all dimension combinations." type="small"/>
+                    </text>
+                </render-mode>
+
+                <field name="dimensionBusinessUnit" title="Business Unit">
+                    <default-field>
+                        <text-line placeholder="e.g., BU-001 (optional)" maxlength="50"/>
+                    </default-field>
+                </field>
+
+                <field name="dimensionLocation" title="Location">
+                    <default-field>
+                        <text-line placeholder="e.g., NYC, LA (optional)" maxlength="50"/>
+                    </default-field>
+                </field>
+
+                <field name="dimensionCostCenter" title="Cost Center">
+                    <default-field>
+                        <text-line placeholder="e.g., CC-SALES (optional)" maxlength="50"/>
+                    </default-field>
+                </field>
+
+                <field name="dimensionDepartment" title="Department">
+                    <default-field>
+                        <text-line placeholder="e.g., SALES, ENGINEERING (optional)" maxlength="50"/>
+                    </default-field>
+                </field>
+
+                <field name="dimensionProject" title="Project">
+                    <default-field>
+                        <text-line placeholder="e.g., PRJ-001 (optional)" maxlength="50"/>
+                    </default-field>
+                </field>
+            </section>
+
+            <field name="createdAt" title="Created">
+                <default-field condition="mappingId">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="createdBy" title="Created By">
+                <default-field condition="mappingId">
+                    <display/>
+                </default-field>
+            </field>
+
+            <field name="updatedAt" title="Last Updated">
+                <default-field condition="mappingId">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="submitButton">
+                <default-field>
+                    <submit button-type="primary" text="Save Mapping"/>
+                </default-field>
+            </field>
+        </form>
+
+        <container-panel id="TestResolutionPanel" type="panel" title-icon="glyphicon-ok"
+                        condition="mappingId">
+            <panel-heading>
+                <label text="Test Mapping Resolution" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <label text="Verify this mapping resolves correctly by testing with a transaction date and dimension values." type="small"/>
+                    </text>
+                </render-mode>
+
+                <form name="TestForm" transition="testResolution" method="post" ajax="true">
+                    <field name="transactionDate" title="Transaction Date" required="true">
+                        <default-field>
+                            <date-time type="date-time" format="yyyy-MM-dd'T'HH:mm:ss"/>
+                        </default-field>
+                    </field>
+
+                    <field name="testBusinessUnit" title="Business Unit (test)">
+                        <default-field>
+                            <text-line placeholder="Optional"/>
+                        </default-field>
+                    </field>
+
+                    <field name="testLocation" title="Location (test)">
+                        <default-field>
+                            <text-line placeholder="Optional"/>
+                        </default-field>
+                    </field>
+
+                    <field name="testCostCenter" title="Cost Center (test)">
+                        <default-field>
+                            <text-line placeholder="Optional"/>
+                        </default-field>
+                    </field>
+
+                    <field name="testAction">
+                        <default-field>
+                            <submit button-type="info" text="Test Resolution"/>
+                        </default-field>
+                    </field>
+                </form>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="MoreActionsPanel" type="panel" title-icon="glyphicon-cog"
+                        condition="mappingId">
+            <panel-heading>
+                <label text="More Actions" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <form name="DuplicateForm" transition="duplicateMapping" method="post">
+                    <field name="mappingId"><default-field><hidden/></default-field></field>
+                    <field name="duplicateAction">
+                        <default-field>
+                            <submit button-type="default" text="Duplicate This Mapping"/>
+                        </default-field>
+                    </field>
+                </form>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>

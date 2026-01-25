@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Find and List Journal Entries with filtering by date and status</description>
+
+    <transition name="getJournalEntries" method="get">
+        <actions>
+            <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+            <service-call name="durion.listJournalEntries" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <transition name="createEntry" method="get">
+        <default-response url="/accounting/JournalEntry/entry" type="redirect"/>
+    </transition>
+
+    <pre-actions>
+        <set field="pageTitle" value="Journal Entries"/>
+        <set field="pageDescription" value="View and manage GL journal entries"/>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="Journal Entries"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text>Journal entries record all debits and credits to GL accounts. Entries in DRAFT status can be edited; POSTED entries are immutable and can only be reversed.</text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <container-panel id="FilterPanel" type="panel" title-icon="glyphicon-filter">
+            <panel-heading>
+                <label text="Filter Journal Entries" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <form name="FilterForm" transition="getJournalEntries" method="get" skip-form="true">
+                    <field name="startDate" title="Start Date">
+                        <default-field>
+                            <date-time type="date" format="yyyy-MM-dd"/>
+                        </default-field>
+                    </field>
+
+                    <field name="endDate" title="End Date">
+                        <default-field>
+                            <date-time type="date" format="yyyy-MM-dd"/>
+                        </default-field>
+                    </field>
+
+                    <field name="status" title="Status">
+                        <default-field>
+                            <drop-down allow-empty="true">
+                                <option key="" text="— Any —"/>
+                                <option key="DRAFT" text="Draft"/>
+                                <option key="POSTED" text="Posted"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="page" title="Page">
+                        <default-field>
+                            <text-line size="4" default-value="0"/>
+                        </default-field>
+                    </field>
+
+                    <field name="pageSize" title="Page Size">
+                        <default-field>
+                            <drop-down>
+                                <option key="10" text="10"/>
+                                <option key="20" text="20" selected="selected"/>
+                                <option key="50" text="50"/>
+                                <option key="100" text="100"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="submit">
+                        <default-field>
+                            <submit button-type="info" text="Filter" icon="glyphicon-search"/>
+                        </default-field>
+                    </field>
+                </form>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="JournalEntriesPanel" type="panel" title-icon="glyphicon-list">
+            <panel-heading>
+                <container-row>
+                    <row-col lg="6">
+                        <label text="Journal Entries" type="h4"/>
+                    </row-col>
+                    <row-col lg="6" style="text-align: right;">
+                        <link url="." text="New Entry" icon="glyphicon-plus" btn="primary"/>
+                    </row-col>
+                </container-row>
+            </panel-heading>
+
+            <panel-body>
+                <form-list name="JournalEntryList" list="journalEntries" skip-form="true" paginate="true" 
+                           page-size="20" header-dialog="false" select-columns="true">
+                    <entity-find entity-name="durion.accounting.DurJournalEntry" list="journalEntries" limit="20">
+                        <econdition field-name="organizationId" from="ec.user.organizationId"/>
+                        <order-by field-name="-transactionDate"/>
+                    </entity-find>
+
+                    <field name="journalEntryId" title="Entry ID">
+                        <default-field><text-line readonly="true" size="20"/></default-field>
+                    </field>
+
+                    <field name="transactionDate" title="Transaction Date">
+                        <default-field><display type="date-time"/></default-field>
+                    </field>
+
+                    <field name="description" title="Description">
+                        <default-field><text-line size="40"/></default-field>
+                    </field>
+
+                    <field name="status" title="Status">
+                        <default-field>
+                            <drop-down>
+                                <option key="DRAFT" text="Draft"/>
+                                <option key="POSTED" text="Posted"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
+
+                    <field name="totalDebit" title="Total Debit">
+                        <default-field><display type="currency" currency-uom-field="currencyUom"/></default-field>
+                    </field>
+
+                    <field name="totalCredit" title="Total Credit">
+                        <default-field><display type="currency" currency-uom-field="currencyUom"/></default-field>
+                    </field>
+
+                    <field name="sourceEventId" title="Source Event">
+                        <default-field><text-line readonly="true"/></default-field>
+                    </field>
+
+                    <field name="postingDate" title="Posted Date">
+                        <default-field><display type="date-time" condition="journalEntry.postingDate"/></default-field>
+                    </field>
+
+                    <field name="postedBy" title="Posted By">
+                        <default-field><display condition="journalEntry.postedBy"/></default-field>
+                    </field>
+
+                    <field name="action" title="Actions">
+                        <default-field>
+                            <link url="." text="View" icon="glyphicon-eye-open"/>
+                            <link url="." text="Edit" icon="glyphicon-pencil" condition="journalEntry.status == 'DRAFT'"/>
+                            <link url="." text="Post" icon="glyphicon-ok" condition="journalEntry.status == 'DRAFT'"/>
+                            <link url="." text="Reverse" icon="glyphicon-remove" condition="journalEntry.status == 'POSTED'"/>
+                        </default-field>
+                    </field>
+                </form-list>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>

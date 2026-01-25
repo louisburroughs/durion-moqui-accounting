@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://moqui.org/xsd/screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/screen-3.xsd"
+        default-menu-include="false">
+
+    <description>Create/Edit Posting Rule Set with rule editor and publish workflow</description>
+
+    <transition name="saveRuleSet" method="post">
+        <actions>
+            <if condition="ruleSetId">
+                <then>
+                    <service-call name="durion.updatePostingRuleSet" in-map="parameters" out-map="result"/>
+                </then>
+                <else>
+                    <set field="parameters.organizationId" from="ec.user.organizationId ?: ec.web.sessionAttributes.organizationId"/>
+                    <service-call name="durion.createPostingRuleSet" in-map="parameters" out-map="result"/>
+                </else>
+            </if>
+            <set field="ruleSet" from="result.ruleSet"/>
+        </actions>
+        <default-response url="/accounting/PostingRuleSet/${result.ruleSet.ruleSetId}/detail" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="publishRuleSet" method="post">
+        <actions>
+            <service-call name="durion.publishPostingRuleSet" in-map="parameters" out-map="result"/>
+            <set field="ruleSet" from="result.ruleSet"/>
+        </actions>
+        <default-response url="." type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="archiveRuleSet" method="post">
+        <actions>
+            <service-call name="durion.archivePostingRuleSet" in-map="parameters" out-map="result"/>
+            <set field="ruleSet" from="result.ruleSet"/>
+        </actions>
+        <default-response url="/accounting/PostingRuleSet" type="redirect"/>
+        <error-response type="json" parameter="error"/>
+    </transition>
+
+    <transition name="validateRuleSet" method="post">
+        <actions>
+            <service-call name="durion.validatePostingRuleSet" in-map="parameters" out-map="result"/>
+        </actions>
+        <default-response type="json" parameter="result"/>
+    </transition>
+
+    <pre-actions>
+        <if condition="ruleSetId">
+            <then>
+                <service-call name="durion.getPostingRuleSet" in-map="[ruleSetId: ruleSetId]" out-map="result"/>
+                <set field="ruleSet" from="result.ruleSet"/>
+                <set field="pageTitle" value="Posting Rule Set: ${ruleSet.name} (v${ruleSet.version})"/>
+            </then>
+            <else>
+                <set field="pageTitle" value="Create Posting Rule Set"/>
+                <set field="ruleSet" from="[status: 'DRAFT', version: 1, rules: []]"/>
+            </else>
+        </if>
+    </pre-actions>
+
+    <widgets>
+        <container-box type="info">
+            <box-heading>
+                <label text="${pageTitle}"/>
+            </box-heading>
+            <box-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <condition condition="ruleSetId">
+                            <text>Edit posting rule set ${ruleSet.name} version ${ruleSet.version}. Once published, rules are immutable. Create a new version to modify.</text>
+                            <else>
+                            <text>Create a new posting rule set. Define rules that map transaction types to GL accounts. Rules are versioned for auditability.</text>
+                            </else>
+                        </condition>
+                    </text>
+                </render-mode>
+            </box-body>
+        </container-box>
+
+        <form name="PostingRuleSetForm" transition="saveRuleSet" method="post">
+            <field name="ruleSetId"><default-field><hidden/></default-field></field>
+
+            <field name="name" title="Rule Set Name" required="true">
+                <default-field>
+                    <text-line placeholder="e.g., 'AR Auto-Post v1', 'Inventory Accrual v2'"
+                               readonly="ruleSet.status != 'DRAFT'"
+                               maxlength="100"/>
+                </default-field>
+            </field>
+
+            <field name="description" title="Description">
+                <default-field>
+                    <text-area rows="3" maxlength="500" placeholder="Describe what transactions this rule set handles and any special logic"/>
+                </default-field>
+            </field>
+
+            <field name="rulesJson" title="Posting Rules (JSON)">
+                <default-field>
+                    <text-area rows="10" placeholder='[{"glAccountId": "gl-001", "dimension": "BUSINESS_UNIT", "priority": 100, "postingCategory": "OPERATING"}]'
+                              readonly="ruleSet.status != 'DRAFT'"/>
+                </default-field>
+            </field>
+
+            <field name="status" title="Status">
+                <default-field>
+                    <display text="${ruleSet.status}"/>
+                </default-field>
+            </field>
+
+            <field name="version" title="Version">
+                <default-field>
+                    <display text="${ruleSet.version}"/>
+                </default-field>
+            </field>
+
+            <field name="publishedDate" title="Published Date">
+                <default-field condition="ruleSet.publishedDate">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="archivedDate" title="Archived Date">
+                <default-field condition="ruleSet.archivedDate">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="createdAt" title="Created">
+                <default-field condition="ruleSetId">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="createdBy" title="Created By">
+                <default-field condition="ruleSetId">
+                    <display/>
+                </default-field>
+            </field>
+
+            <field name="updatedAt" title="Last Updated">
+                <default-field condition="ruleSetId">
+                    <display type="date-time"/>
+                </default-field>
+            </field>
+
+            <field name="submitButton">
+                <default-field>
+                    <submit button-type="primary" text="Save Rule Set" condition="ruleSet.status == 'DRAFT'"/>
+                </default-field>
+            </field>
+        </form>
+
+        <container-panel id="RuleEditor" type="panel" title-icon="glyphicon-edit"
+                        condition="ruleSet.status == 'DRAFT'">
+            <panel-heading>
+                <label text="Rule Editor (JSON)" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <strong>Rule Structure:</strong>
+                    </text>
+                    <text type="pre">
+                        <![CDATA[{
+  "glAccountId": "string (required)",
+  "dimension": "BUSINESS_UNIT | LOCATION | COST_CENTER | PROJECT (optional)",
+  "priority": "integer (0-100, higher = first match, default: 0)",
+  "postingCategory": "OPERATING | CAPITAL | NON_OPERATING | ADJUSTMENT"
+}]]>
+                    </text>
+                </render-mode>
+                <label text="Each rule is evaluated in priority order. First match wins." type="small"/>
+            </panel-body>
+        </container-panel>
+
+        <container-panel id="StateTransitions" type="panel" title-icon="glyphicon-cog"
+                        condition="ruleSetId">
+            <panel-heading>
+                <label text="State Transitions" type="h5"/>
+            </panel-heading>
+            <panel-body>
+                <render-mode type="text">
+                    <text type="p">
+                        <strong>Current Status:</strong> ${ruleSet.status}
+                    </text>
+                </render-mode>
+
+                <form name="ValidateForm" transition="validateRuleSet" method="post"
+                     condition="ruleSet.status == 'DRAFT'">
+                    <field name="ruleSetId"><default-field><hidden/></default-field></field>
+                    <field name="validateAction"><default-field>
+                        <submit button-type="info" text="Validate Rules" ajax="true"/>
+                    </default-field></field>
+                </form>
+
+                <form name="PublishForm" transition="publishRuleSet" method="post"
+                     condition="ruleSet.status == 'DRAFT'">
+                    <field name="ruleSetId"><default-field><hidden/></default-field></field>
+                    <field name="publishAction"><default-field>
+                        <submit button-type="success" text="Publish Rule Set (DRAFT → PUBLISHED)"/>
+                    </default-field></field>
+                </form>
+
+                <form name="ArchiveForm" transition="archiveRuleSet" method="post"
+                     condition="ruleSet.status == 'PUBLISHED'">
+                    <field name="ruleSetId"><default-field><hidden/></default-field></field>
+                    <field name="archiveAction"><default-field>
+                        <submit button-type="danger" text="Archive Rule Set"/>
+                    </default-field></field>
+                </form>
+
+                <section name="ImmutableSection" condition="ruleSet.status != 'DRAFT'">
+                    <label text="⚠️ Published rule sets are immutable. Create a new version to modify." type="h6"/>
+                </section>
+            </panel-body>
+        </container-panel>
+
+    </widgets>
+
+</screen>
