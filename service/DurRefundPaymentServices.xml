@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+
+    <!-- Refund Payment Services -->
+    <service verb="initiate" noun="RefundPayment" type="inline">
+        <description>Initiate a new refund payment request</description>
+        <in-parameters>
+            <parameter name="customerId" required="true"/>
+            <parameter name="originalPaymentId"/>
+            <parameter name="invoiceId"/>
+            <parameter name="refundAmount" type="BigDecimal" required="true"/>
+            <parameter name="refundMethod" required="true">
+                <description>ORIGINAL_METHOD, CHECK, ACH, WIRE_TRANSFER, STORE_CREDIT</description>
+            </parameter>
+            <parameter name="reason" required="true"/>
+            <parameter name="glAccountId"/>
+            <parameter name="notes"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="refundPaymentId"/>
+            <parameter name="refundPayment" type="Map"/>
+        </out-parameters>
+        <actions>
+            <set field="statusId" value="REFUND_INITIATED"/>
+            <set field="requestDate" from="ec.user.nowTimestamp"/>
+            <set field="createdBy" from="ec.user.userAccount.userId"/>
+            <service-call name="create#durion.accounting.DurRefundPayment" in-map="context" out-map="context"/>
+            <entity-find-one entity-name="durion.accounting.DurRefundPayment" value-field="refundPayment">
+                <field-map field-name="refundPaymentId" from="refundPaymentId"/>
+            </entity-find-one>
+        </actions>
+    </service>
+
+    <service verb="approve" noun="RefundPayment" type="inline">
+        <description>Approve a refund payment request</description>
+        <in-parameters>
+            <parameter name="refundPaymentId" required="true"/>
+            <parameter name="approvedBy"/>
+            <parameter name="notes"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+            <parameter name="refundPayment" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find-one entity-name="durion.accounting.DurRefundPayment" value-field="refundPayment">
+                <field-map field-name="refundPaymentId" from="refundPaymentId"/>
+            </entity-find-one>
+            
+            <if condition="!refundPayment">
+                <then>
+                    <message error="true">Refund payment not found: ${refundPaymentId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <if condition="refundPayment.statusId != 'REFUND_INITIATED'">
+                <then>
+                    <message error="true">Refund payment ${refundPaymentId} cannot be approved from status ${refundPayment.statusId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <set field="refundPayment.statusId" value="REFUND_APPROVED"/>
+            <set field="refundPayment.approvalDate" from="ec.user.nowTimestamp"/>
+            <set field="refundPayment.approvedBy" from="approvedBy ?: ec.user.userAccount.userId"/>
+            <if condition="notes">
+                <set field="refundPayment.notes" from="(refundPayment.notes ?: '') + '\n' + notes"/>
+            </if>
+            <entity-update value-field="refundPayment"/>
+            
+            <log level="info" message="Refund payment ${refundPaymentId} approved by ${refundPayment.approvedBy}"/>
+            <set field="success" from="true"/>
+        </actions>
+    </service>
+
+    <service verb="process" noun="RefundPayment" type="inline">
+        <description>Start processing a refund payment</description>
+        <in-parameters>
+            <parameter name="refundPaymentId" required="true"/>
+            <parameter name="referenceNumber"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+            <parameter name="refundPayment" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find-one entity-name="durion.accounting.DurRefundPayment" value-field="refundPayment">
+                <field-map field-name="refundPaymentId" from="refundPaymentId"/>
+            </entity-find-one>
+            
+            <if condition="!refundPayment">
+                <then>
+                    <message error="true">Refund payment not found: ${refundPaymentId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <if condition="refundPayment.statusId != 'REFUND_APPROVED'">
+                <then>
+                    <message error="true">Refund payment ${refundPaymentId} cannot be processed from status ${refundPayment.statusId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <set field="refundPayment.statusId" value="REFUND_PROCESSING"/>
+            <set field="refundPayment.processingDate" from="ec.user.nowTimestamp"/>
+            <if condition="referenceNumber">
+                <set field="refundPayment.referenceNumber" from="referenceNumber"/>
+            </if>
+            <entity-update value-field="refundPayment"/>
+            
+            <log level="info" message="Refund payment ${refundPaymentId} processing started"/>
+            <set field="success" from="true"/>
+        </actions>
+    </service>
+
+    <service verb="complete" noun="RefundPayment" type="inline">
+        <description>Complete a refund payment</description>
+        <in-parameters>
+            <parameter name="refundPaymentId" required="true"/>
+            <parameter name="referenceNumber"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+            <parameter name="refundPayment" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find-one entity-name="durion.accounting.DurRefundPayment" value-field="refundPayment">
+                <field-map field-name="refundPaymentId" from="refundPaymentId"/>
+            </entity-find-one>
+            
+            <if condition="!refundPayment">
+                <then>
+                    <message error="true">Refund payment not found: ${refundPaymentId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <if condition="refundPayment.statusId != 'REFUND_PROCESSING'">
+                <then>
+                    <message error="true">Refund payment ${refundPaymentId} cannot be completed from status ${refundPayment.statusId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <set field="refundPayment.statusId" value="REFUND_COMPLETED"/>
+            <set field="refundPayment.completedDate" from="ec.user.nowTimestamp"/>
+            <if condition="referenceNumber">
+                <set field="refundPayment.referenceNumber" from="referenceNumber"/>
+            </if>
+            <entity-update value-field="refundPayment"/>
+            
+            <!-- Create AR transaction for the refund -->
+            <service-call name="create#durion.accounting.DurArTransaction" out-map="arResult">
+                <field-map field-name="invoiceId" from="refundPayment.invoiceId"/>
+                <field-map field-name="customerId" from="refundPayment.customerId"/>
+                <field-map field-name="transactionType" value="REFUND"/>
+                <field-map field-name="transactionDate" from="ec.user.nowTimestamp"/>
+                <field-map field-name="description" value="Refund Payment: ${refundPaymentId}"/>
+                <field-map field-name="amount" from="refundPayment.refundAmount * -1"/>
+                <field-map field-name="balanceAmount" from="0"/>
+                <field-map field-name="statusId" value="AR_TRANS_POSTED"/>
+                <field-map field-name="postedDate" from="ec.user.nowTimestamp"/>
+                <field-map field-name="createdBy" from="ec.user.userAccount.userId"/>
+            </service-call>
+            
+            <log level="info" message="Refund payment ${refundPaymentId} completed"/>
+            <set field="success" from="true"/>
+        </actions>
+    </service>
+
+    <service verb="fail" noun="RefundPayment" type="inline">
+        <description>Mark a refund payment as failed</description>
+        <in-parameters>
+            <parameter name="refundPaymentId" required="true"/>
+            <parameter name="failureReason" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+            <parameter name="refundPayment" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find-one entity-name="durion.accounting.DurRefundPayment" value-field="refundPayment">
+                <field-map field-name="refundPaymentId" from="refundPaymentId"/>
+            </entity-find-one>
+            
+            <if condition="!refundPayment">
+                <then>
+                    <message error="true">Refund payment not found: ${refundPaymentId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <if condition="refundPayment.statusId != 'REFUND_PROCESSING'">
+                <then>
+                    <message error="true">Refund payment ${refundPaymentId} cannot be failed from status ${refundPayment.statusId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <set field="refundPayment.statusId" value="REFUND_FAILED"/>
+            <set field="refundPayment.failureReason" from="failureReason"/>
+            <entity-update value-field="refundPayment"/>
+            
+            <log level="warn" message="Refund payment ${refundPaymentId} failed: ${failureReason}"/>
+            <set field="success" from="true"/>
+        </actions>
+    </service>
+
+    <service verb="cancel" noun="RefundPayment" type="inline">
+        <description>Cancel a refund payment</description>
+        <in-parameters>
+            <parameter name="refundPaymentId" required="true"/>
+            <parameter name="cancellationReason" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="success" type="Boolean"/>
+            <parameter name="refundPayment" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find-one entity-name="durion.accounting.DurRefundPayment" value-field="refundPayment">
+                <field-map field-name="refundPaymentId" from="refundPaymentId"/>
+            </entity-find-one>
+            
+            <if condition="!refundPayment">
+                <then>
+                    <message error="true">Refund payment not found: ${refundPaymentId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <!-- Can only cancel from INITIATED or APPROVED states -->
+            <if condition="refundPayment.statusId != 'REFUND_INITIATED' &amp;&amp; refundPayment.statusId != 'REFUND_APPROVED'">
+                <then>
+                    <message error="true">Refund payment ${refundPaymentId} cannot be cancelled from status ${refundPayment.statusId}</message>
+                    <set field="success" from="false"/>
+                    <return/>
+                </then>
+            </if>
+            
+            <set field="refundPayment.statusId" value="REFUND_CANCELLED"/>
+            <set field="refundPayment.notes" from="(refundPayment.notes ?: '') + '\nCancelled: ' + cancellationReason"/>
+            <entity-update value-field="refundPayment"/>
+            
+            <log level="info" message="Refund payment ${refundPaymentId} cancelled: ${cancellationReason}"/>
+            <set field="success" from="true"/>
+        </actions>
+    </service>
+
+    <service verb="find" noun="RefundPayments" type="inline">
+        <description>Find refund payments with optional filters</description>
+        <in-parameters>
+            <parameter name="customerId"/>
+            <parameter name="originalPaymentId"/>
+            <parameter name="invoiceId"/>
+            <parameter name="statusId"/>
+            <parameter name="refundMethod"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="refundPaymentList" type="List"/>
+        </out-parameters>
+        <actions>
+            <entity-find entity-name="durion.accounting.DurRefundPayment" list="refundPaymentList">
+                <econdition field-name="customerId" from="customerId" ignore-if-empty="true"/>
+                <econdition field-name="originalPaymentId" from="originalPaymentId" ignore-if-empty="true"/>
+                <econdition field-name="invoiceId" from="invoiceId" ignore-if-empty="true"/>
+                <econdition field-name="statusId" from="statusId" ignore-if-empty="true"/>
+                <econdition field-name="refundMethod" from="refundMethod" ignore-if-empty="true"/>
+                <order-by field-name="-requestDate"/>
+            </entity-find>
+        </actions>
+    </service>
+
+    <service verb="get" noun="RefundPaymentSummary" type="inline">
+        <description>Get summary statistics for refund payments</description>
+        <in-parameters>
+            <parameter name="customerId"/>
+            <parameter name="startDate" type="Date"/>
+            <parameter name="endDate" type="Date"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="refundCount" type="Integer"/>
+            <parameter name="totalRefunded" type="BigDecimal"/>
+            <parameter name="averageRefund" type="BigDecimal"/>
+            <parameter name="statusSummary" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find entity-name="durion.accounting.DurRefundPayment" list="refunds">
+                <econdition field-name="customerId" from="customerId" ignore-if-empty="true"/>
+                <econdition field-name="requestDate" operator="greater-equals" from="startDate" ignore-if-empty="true"/>
+                <econdition field-name="requestDate" operator="less-equals" from="endDate" ignore-if-empty="true"/>
+            </entity-find>
+            
+            <set field="refundCount" from="refunds.size()"/>
+            <set field="totalRefunded" from="0" type="BigDecimal"/>
+            <set field="statusSummary" from="[:]"/>
+            
+            <iterate list="refunds" entry="refund">
+                <set field="totalRefunded" from="totalRefunded + (refund.refundAmount ?: 0)"/>
+                <set field="status" from="refund.statusId"/>
+                <set field="statusSummary[status]" from="(statusSummary[status] ?: 0) + 1"/>
+            </iterate>
+            
+            <set field="averageRefund" from="refundCount > 0 ? totalRefunded / refundCount : 0" type="BigDecimal"/>
+        </actions>
+    </service>
+
+</services>

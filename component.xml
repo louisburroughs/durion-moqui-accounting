@@ -8,6 +8,7 @@
 
     <entity-facade>
         <load-entity value="demo" location="data/DurAccountingDemoData.xml"/>
+        <load-entity value="demo" location="data/DurRefundPaymentDemoData.xml"/>
     </entity-facade>
 
 </component>

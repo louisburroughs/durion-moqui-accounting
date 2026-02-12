@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+
+    <entity entity-name="DurRefundPayment" package-name="durion.accounting" table-name="DUR_REFUND_PAYMENT">
+        <description>Refund Payment records - tracking customer refunds through their lifecycle</description>
+        <field name="refundPaymentId" type="id" is-pk="true"/>
+        <field name="customerId" type="id" is-pk="false" required="true">
+            <description>Customer receiving the refund</description>
+        </field>
+        <field name="originalPaymentId" type="id" is-pk="false">
+            <description>Reference to the original payment being refunded</description>
+        </field>
+        <field name="invoiceId" type="id" is-pk="false">
+            <description>Invoice related to this refund</description>
+        </field>
+        <field name="refundAmount" type="currency-amount" required="true">
+            <description>Amount to be refunded</description>
+        </field>
+        <field name="refundMethod" type="text-short" required="true">
+            <description>ORIGINAL_METHOD, CHECK, ACH, WIRE_TRANSFER, STORE_CREDIT</description>
+        </field>
+        <field name="statusId" type="text-short" default="REFUND_INITIATED" required="true">
+            <description>REFUND_INITIATED, REFUND_APPROVED, REFUND_PROCESSING, REFUND_COMPLETED, REFUND_FAILED, REFUND_CANCELLED</description>
+        </field>
+        <field name="requestDate" type="date-time" required="true" default="ec.user.nowTimestamp">
+            <description>Date when refund was requested</description>
+        </field>
+        <field name="approvalDate" type="date-time">
+            <description>Date when refund was approved</description>
+        </field>
+        <field name="approvedBy" type="text-short">
+            <description>User who approved the refund</description>
+        </field>
+        <field name="processingDate" type="date-time">
+            <description>Date when refund processing started</description>
+        </field>
+        <field name="completedDate" type="date-time">
+            <description>Date when refund was completed</description>
+        </field>
+        <field name="referenceNumber" type="text-short">
+            <description>Check number, transaction ID, etc.</description>
+        </field>
+        <field name="reason" type="text-medium">
+            <description>Reason for the refund</description>
+        </field>
+        <field name="glAccountId" type="text-short">
+            <description>GL account for refund</description>
+        </field>
+        <field name="failureReason" type="text-long">
+            <description>Reason for failure if statusId is REFUND_FAILED</description>
+        </field>
+        <field name="notes" type="text-long"/>
+        <field name="createdBy" type="text-short"/>
+        <field name="createdDate" type="date-time" default="ec.user.nowTimestamp"/>
+        <field name="updatedDate" type="date-time" update="ec.user.nowTimestamp"/>
+        <relationship type="one" related-entity-name="durion.crm.DurCustomer" short-alias="customer">
+            <key-map field-name="customerId" related-field-name="customerId"/>
+        </relationship>
+        <relationship type="one" related-entity-name="durion.accounting.DurPayment" short-alias="originalPayment">
+            <key-map field-name="originalPaymentId" related-field-name="paymentId"/>
+        </relationship>
+    </entity>
+
+</entities>

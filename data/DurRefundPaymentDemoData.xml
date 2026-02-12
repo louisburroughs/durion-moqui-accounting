@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml type="demo">
+    <!-- Sample Refund Payment Records -->
+    
+    <!-- Completed Refund -->
+    <durion.accounting.DurRefundPayment 
+        refundPaymentId="REFUND-001" 
+        customerId="CUST-001" 
+        originalPaymentId="PAY-001"
+        invoiceId="INV-001"
+        refundAmount="250.00" 
+        refundMethod="ORIGINAL_METHOD"
+        statusId="REFUND_COMPLETED" 
+        requestDate="2024-12-20T10:00:00"
+        approvalDate="2024-12-20T11:00:00"
+        approvedBy="admin"
+        processingDate="2024-12-20T14:00:00"
+        completedDate="2024-12-20T16:30:00"
+        referenceNumber="REFUND-CHK-123"
+        reason="Product return - damaged goods"
+        glAccountId="GL-1010"
+        createdBy="admin"/>
+    
+    <!-- Refund in Processing -->
+    <durion.accounting.DurRefundPayment 
+        refundPaymentId="REFUND-002" 
+        customerId="CUST-002" 
+        originalPaymentId="PAY-002"
+        invoiceId="INV-002"
+        refundAmount="500.00" 
+        refundMethod="ACH"
+        statusId="REFUND_PROCESSING" 
+        requestDate="2024-12-22T09:00:00"
+        approvalDate="2024-12-22T10:00:00"
+        approvedBy="admin"
+        processingDate="2024-12-22T11:00:00"
+        referenceNumber="ACH-REFUND-456"
+        reason="Service cancellation"
+        glAccountId="GL-1010"
+        createdBy="admin"/>
+    
+    <!-- Approved Refund (Pending Processing) -->
+    <durion.accounting.DurRefundPayment 
+        refundPaymentId="REFUND-003" 
+        customerId="CUST-003" 
+        invoiceId="INV-003"
+        refundAmount="1000.00" 
+        refundMethod="CHECK"
+        statusId="REFUND_APPROVED" 
+        requestDate="2024-12-23T08:00:00"
+        approvalDate="2024-12-23T09:30:00"
+        approvedBy="admin"
+        reason="Overcharge correction"
+        glAccountId="GL-1010"
+        notes="Customer requested check to be mailed"
+        createdBy="admin"/>
+    
+    <!-- Initiated Refund (Pending Approval) -->
+    <durion.accounting.DurRefundPayment 
+        refundPaymentId="REFUND-004" 
+        customerId="CUST-001" 
+        invoiceId="INV-001"
+        refundAmount="150.00" 
+        refundMethod="STORE_CREDIT"
+        statusId="REFUND_INITIATED" 
+        requestDate="2024-12-24T13:00:00"
+        reason="Partial return - one item"
+        glAccountId="GL-1010"
+        notes="Customer prefers store credit"
+        createdBy="admin"/>
+    
+    <!-- Cancelled Refund -->
+    <durion.accounting.DurRefundPayment 
+        refundPaymentId="REFUND-005" 
+        customerId="CUST-002" 
+        originalPaymentId="PAY-002"
+        refundAmount="100.00" 
+        refundMethod="ORIGINAL_METHOD"
+        statusId="REFUND_CANCELLED" 
+        requestDate="2024-12-19T10:00:00"
+        approvalDate="2024-12-19T11:00:00"
+        approvedBy="admin"
+        reason="Customer changed mind"
+        glAccountId="GL-1010"
+        notes="Cancelled: Customer decided to keep the product"
+        createdBy="admin"/>
+    
+    <!-- Failed Refund -->
+    <durion.accounting.DurRefundPayment 
+        refundPaymentId="REFUND-006" 
+        customerId="CUST-003" 
+        originalPaymentId="PAY-003"
+        invoiceId="INV-003"
+        refundAmount="300.00" 
+        refundMethod="ACH"
+        statusId="REFUND_FAILED" 
+        requestDate="2024-12-18T14:00:00"
+        approvalDate="2024-12-18T15:00:00"
+        approvedBy="admin"
+        processingDate="2024-12-18T16:00:00"
+        referenceNumber="ACH-FAIL-789"
+        reason="Billing error"
+        glAccountId="GL-1010"
+        failureReason="Invalid bank account number provided"
+        notes="Customer to provide updated banking information"
+        createdBy="admin"/>
+    
+    <!-- Corresponding AR Transactions for completed refund -->
+    <durion.accounting.DurArTransaction 
+        arTransactionId="ARTRANS-REFUND-001" 
+        invoiceId="INV-001"
+        customerId="CUST-001" 
+        transactionType="REFUND"
+        transactionDate="2024-12-20T16:30:00"
+        description="Refund Payment: REFUND-001"
+        amount="-250.00" 
+        balanceAmount="0"
+        statusId="AR_TRANS_POSTED"
+        postedDate="2024-12-20T16:30:00"
+        createdBy="admin"/>
+
+</entity-facade-xml>

@@ -12,7 +12,7 @@
             <description>Customer associated with transaction</description>
         </field>
         <field name="transactionType" type="text-short">
-            <description>INVOICE, CREDIT_MEMO, PAYMENT, ADJUSTMENT, WRITE_OFF</description>
+            <description>INVOICE, CREDIT_MEMO, PAYMENT, REFUND, ADJUSTMENT, WRITE_OFF</description>
         </field>
         <field name="transactionDate" type="date-time" required="true"/>
         <field name="description" type="text-medium"/>
